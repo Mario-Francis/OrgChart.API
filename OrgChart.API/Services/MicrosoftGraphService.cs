@@ -181,6 +181,46 @@ namespace OrgChart.API.Services
             }
         }
 
+        public async Task<IEnumerable<ADUser>> SearchUsers(string query, string userId=null, bool includeUser = false)
+        {
+            if (string.IsNullOrEmpty(query))
+            {
+                return new List<ADUser>();
+            }
+            AuthenticationContext authenticationContext = new AuthenticationContext(azureADSettings.Authority);
+            ClientCredential clientCred = new ClientCredential(azureADSettings.ClientId, azureADSettings.ClientSecret);
+
+            // ADAL includes an in memory cache, so this call will only send a message to the server if the cached token is expired.
+            AuthenticationResult authenticationResult = await authenticationContext.AcquireTokenAsync(azureADSettings.GraphResource, clientCred);
+            var token = authenticationResult.AccessToken;
+
+            var url = $"https://graph.microsoft.com/v1.0/users?$expand=manager($levels=max;$select=id,displayName,userPrincipalName,jobTitle,mail,surname,givenName,mobilePhone,businessPhones,department,accountEnabled)&$search=\"displayName:{query}\" OR \"userPrincipalName:{query}\"&$orderby=displayName&$select=id,displayName,jobTitle,mail,surname,userPrincipalName,givenName,mobilePhone,businessPhones,department,accountEnabled&$count=true&ConsistencyLevel=eventual&$top=20&$filter=accountEnabled eq true";
+            var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Authorization = new AuthenticationHeaderValue("bearer", token.ToString());
+            var client = clientFactory.CreateClient();
+            var response = await client.SendAsync(request);
+
+            var resContent = await response.Content.ReadAsStringAsync();
+
+            if (response.IsSuccessStatusCode)
+            {
+                var resObj = JsonSerializer.Deserialize<ODataResponse>(resContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                var users = resObj.Value;
+               
+                if(!includeUser && !string.IsNullOrEmpty(userId))
+                {
+                    users = users.Where(u => u.Id != userId);
+                }
+
+                return users.Select(u=> ADUser.FromUser(u));
+            }
+            else
+            {
+                throw new Exception(resContent);
+            }
+        }
+
+
         public async Task<IEnumerable<ADUser>> GetUserOrgChart(string userId)
         {
             var managers = await GetUserManagers(userId, true);
@@ -230,7 +270,7 @@ namespace OrgChart.API.Services
                 })
                 .GetAsync();
 
-           var _users = usersWithoutManagers;
+            var _users = usersWithoutManagers;
             if (!string.IsNullOrEmpty(groupId))
             {
                 var __users = users.Where(u => !u.MemberOf.Any(g => g.Id == groupId));
@@ -272,17 +312,25 @@ namespace OrgChart.API.Services
             });
         }
 
-        public async Task AssignUserManager(string userId, string managerId)
+        public async Task AssignUserManager(string userId, string managerId, bool forceAssign=false)
         {
-            var user = await GetUser(userId);
-            if (user.ManagerId == null)
+            if (forceAssign)
             {
                 var client = await GetGraphServiceClient();
                 await client.Users[userId].Manager.Reference.Request().PutAsync(managerId);
             }
             else
             {
-                throw new Exception("User has already been claimed");
+                var user = await GetUser(userId);
+                if (user.ManagerId == null)
+                {
+                    var client = await GetGraphServiceClient();
+                    await client.Users[userId].Manager.Reference.Request().PutAsync(managerId);
+                }
+                else
+                {
+                    throw new Exception("User has already been claimed");
+                }
             }
         }
 
@@ -292,13 +340,21 @@ namespace OrgChart.API.Services
             await client.Users[userId].Manager.Reference.Request().DeleteAsync();
         }
 
-        public async Task AssignUsersManager(IEnumerable<string> userIds, string managerId)
+        public async Task AssignUsersManager(IEnumerable<string> userIds, string managerId, bool forceAssign = false)
         {
 
             await userIds.ParallelForEachAsync(async (userId) =>
             {
-                var user = await GetUser(userId);
-                if (user.ManagerId == null)
+                if (!forceAssign)
+                {
+                    var user = await GetUser(userId);
+                    if (user.ManagerId == null)
+                    {
+                        var client = await GetGraphServiceClient();
+                        await client.Users[userId].Manager.Reference.Request().PutAsync(managerId);
+                    }
+                }
+                else
                 {
                     var client = await GetGraphServiceClient();
                     await client.Users[userId].Manager.Reference.Request().PutAsync(managerId);

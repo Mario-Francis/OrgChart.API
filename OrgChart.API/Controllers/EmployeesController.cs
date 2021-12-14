@@ -82,6 +82,20 @@ namespace OrgChart.API.Controllers
                 return StatusCode(500, new APIResponse<object> { IsSuccess = false, Message = ex.Message });
             }
         }
+        [HttpGet("Search")]
+        public async Task<IActionResult> Search([FromQuery]string query, [FromQuery]string userId)
+        {
+            try
+            {
+                var result = await microsoftGraphService.SearchUsers(query, userId);
+                return Ok(new APIResponse<IEnumerable<ADUser>> { IsSuccess = true, Message = "Success", Data = result });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error encountered searching users");
+                return StatusCode(500, new APIResponse<object> { IsSuccess = false, Message = ex.Message });
+            }
+        }
 
         [HttpGet("{userId}/OrgChart")]
         public async Task<IActionResult> GetOrgChart(string userId)
@@ -129,11 +143,11 @@ namespace OrgChart.API.Controllers
         }
 
         [HttpPost("{userId}/AssignManager")]
-        public async Task<IActionResult> AssignManager(string userId, ManagerUpdateRequest req)
+        public async Task<IActionResult> AssignManager(string userId, ManagerUpdateRequest req, [FromQuery]bool force=false)
         {
             try
             {
-                await microsoftGraphService.AssignUserManager(userId, req.managerId);
+                await microsoftGraphService.AssignUserManager(userId, req.ManagerId, force);
                 return Ok(new APIResponse<object> { IsSuccess = true, Message = "Success", Data = null });
             }
             catch (Exception ex)
@@ -144,11 +158,11 @@ namespace OrgChart.API.Controllers
         }
 
         [HttpPost("AssignManagers")]
-        public async Task<IActionResult> AssignManagers(ManagerUpdateRequest req)
+        public async Task<IActionResult> AssignManagers(ManagerUpdateRequest req, [FromQuery]bool force = false)
         {
             try
             {
-                await microsoftGraphService.AssignUsersManager(req.userIds, req.managerId);
+                await microsoftGraphService.AssignUsersManager(req.UserIds, req.ManagerId, force);
                 return Ok(new APIResponse<object> { IsSuccess = true, Message = "Success", Data = null });
             }
             catch (Exception ex)
@@ -178,7 +192,7 @@ namespace OrgChart.API.Controllers
         {
             try
             {
-                await microsoftGraphService.UnassignUsersManager(req.userIds);
+                await microsoftGraphService.UnassignUsersManager(req.UserIds);
                 return Ok(new APIResponse<object> { IsSuccess = true, Message = "Success", Data = null });
             }
             catch (Exception ex)
