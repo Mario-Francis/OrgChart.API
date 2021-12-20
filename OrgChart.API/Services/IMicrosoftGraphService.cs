@@ -12,6 +12,7 @@ namespace OrgChart.API.Services
         Task<IEnumerable<ADUser>> GetUserDirectReports(string userId);
         Task<IEnumerable<ADUser>> GetUserManagers(string userId, bool includeUser = false);
         Task<IEnumerable<ADUser>> SearchUsers(string query, string userId, bool includeUser = false);
+        Task<IEnumerable<ADUser>> SearchManagers(string query, string userId = null, bool includeUser = false);
         Task<IEnumerable<ADUser>> GetUserOrgChart(string userId);
         Task<IEnumerable<ADUser>> GetUsersWithoutManagers();
         Task<IEnumerable<ADUser>> GetUsersWithManagers();

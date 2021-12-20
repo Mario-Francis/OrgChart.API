@@ -18,22 +18,20 @@ namespace OrgChart.API.Services
 {
     public class MicrosoftGraphService : IMicrosoftGraphService
     {
-        private readonly AzureADSettings azureADSettings;
-        private readonly IOptions<AzureADSettings> azureADSettings1;
+        private readonly IOptionsSnapshot<AzureADSettings> azureADSettingsDelegate;
         private readonly IHttpClientFactory clientFactory;
         private readonly ILogger<MicrosoftGraphService> logger;
-        private readonly IConfiguration config;
+        private readonly IOptionsSnapshot<AppSettings> appSettingsDelegate;
 
-        public MicrosoftGraphService(IOptions<AzureADSettings> azureADSettings,
+        public MicrosoftGraphService(IOptionsSnapshot<AzureADSettings> azureADSettingsDelegate,
             IHttpClientFactory clientFactory,
             ILogger<MicrosoftGraphService> logger,
-            IConfiguration config)
+            IOptionsSnapshot<AppSettings> appSettingsDelegate)
         {
-            this.azureADSettings = azureADSettings.Value;
-            azureADSettings1 = azureADSettings;
+            this.azureADSettingsDelegate = azureADSettingsDelegate;
             this.clientFactory = clientFactory;
             this.logger = logger;
-            this.config = config;
+            this.appSettingsDelegate = appSettingsDelegate;
         }
 
         private async Task<GraphServiceClient> GetGraphServiceClient()
@@ -41,7 +39,7 @@ namespace OrgChart.API.Services
             // Get Access Token and Microsoft Graph Client using access token and microsoft graph v1.0 endpoint
             var delegateAuthProvider = await GetAuthProvider();
             // Initializing the GraphServiceClient
-            var graphClient = new GraphServiceClient(azureADSettings.GraphAPIEndPoint, delegateAuthProvider);
+            var graphClient = new GraphServiceClient(azureADSettingsDelegate.Value.GraphAPIEndPoint, delegateAuthProvider);
 
             return graphClient;
         }
@@ -49,11 +47,11 @@ namespace OrgChart.API.Services
 
         private async Task<IAuthenticationProvider> GetAuthProvider()
         {
-            AuthenticationContext authenticationContext = new AuthenticationContext(azureADSettings.Authority);
-            ClientCredential clientCred = new ClientCredential(azureADSettings.ClientId, azureADSettings.ClientSecret);
+            AuthenticationContext authenticationContext = new AuthenticationContext(azureADSettingsDelegate.Value.Authority);
+            ClientCredential clientCred = new ClientCredential(azureADSettingsDelegate.Value.ClientId, azureADSettingsDelegate.Value.ClientSecret);
 
             // ADAL includes an in memory cache, so this call will only send a message to the server if the cached token is expired.
-            AuthenticationResult authenticationResult = await authenticationContext.AcquireTokenAsync(azureADSettings.GraphResource, clientCred);
+            AuthenticationResult authenticationResult = await authenticationContext.AcquireTokenAsync(azureADSettingsDelegate.Value.GraphResource, clientCred);
             var token = authenticationResult.AccessToken;
 
             var delegateAuthProvider = new DelegateAuthenticationProvider((requestMessage) =>
@@ -139,11 +137,11 @@ namespace OrgChart.API.Services
 
         public async Task<IEnumerable<ADUser>> GetUserManagers(string userId, bool includeUser = false)
         {
-            AuthenticationContext authenticationContext = new AuthenticationContext(azureADSettings.Authority);
-            ClientCredential clientCred = new ClientCredential(azureADSettings.ClientId, azureADSettings.ClientSecret);
+            AuthenticationContext authenticationContext = new AuthenticationContext(azureADSettingsDelegate.Value.Authority);
+            ClientCredential clientCred = new ClientCredential(azureADSettingsDelegate.Value.ClientId, azureADSettingsDelegate.Value.ClientSecret);
 
             // ADAL includes an in memory cache, so this call will only send a message to the server if the cached token is expired.
-            AuthenticationResult authenticationResult = await authenticationContext.AcquireTokenAsync(azureADSettings.GraphResource, clientCred);
+            AuthenticationResult authenticationResult = await authenticationContext.AcquireTokenAsync(azureADSettingsDelegate.Value.GraphResource, clientCred);
             var token = authenticationResult.AccessToken;
 
             if (string.IsNullOrEmpty(userId))
@@ -187,11 +185,11 @@ namespace OrgChart.API.Services
             {
                 return new List<ADUser>();
             }
-            AuthenticationContext authenticationContext = new AuthenticationContext(azureADSettings.Authority);
-            ClientCredential clientCred = new ClientCredential(azureADSettings.ClientId, azureADSettings.ClientSecret);
+            AuthenticationContext authenticationContext = new AuthenticationContext(azureADSettingsDelegate.Value.Authority);
+            ClientCredential clientCred = new ClientCredential(azureADSettingsDelegate.Value.ClientId, azureADSettingsDelegate.Value.ClientSecret);
 
             // ADAL includes an in memory cache, so this call will only send a message to the server if the cached token is expired.
-            AuthenticationResult authenticationResult = await authenticationContext.AcquireTokenAsync(azureADSettings.GraphResource, clientCred);
+            AuthenticationResult authenticationResult = await authenticationContext.AcquireTokenAsync(azureADSettingsDelegate.Value.GraphResource, clientCred);
             var token = authenticationResult.AccessToken;
 
             var url = $"https://graph.microsoft.com/v1.0/users?$expand=manager($levels=max;$select=id,displayName,userPrincipalName,jobTitle,mail,surname,givenName,mobilePhone,businessPhones,department,accountEnabled)&$search=\"displayName:{query}\" OR \"userPrincipalName:{query}\"&$orderby=displayName&$select=id,displayName,jobTitle,mail,surname,userPrincipalName,givenName,mobilePhone,businessPhones,department,accountEnabled&$count=true&ConsistencyLevel=eventual&$top=20&$filter=accountEnabled eq true";
@@ -209,10 +207,49 @@ namespace OrgChart.API.Services
                
                 if(!includeUser && !string.IsNullOrEmpty(userId))
                 {
-                    users = users.Where(u => u.Id != userId);
+                    users = users.Where(u => u.Id != userId && u.UserPrincipalName.ToLower()!=userId.ToLower());
                 }
-
+                users = users.Where(u => u.UserPrincipalName.ToLower().EndsWith(appSettingsDelegate.Value.SearchFilterSuffix.ToLower()));
                 return users.Select(u=> ADUser.FromUser(u));
+            }
+            else
+            {
+                throw new Exception(resContent);
+            }
+        }
+
+        public async Task<IEnumerable<ADUser>> SearchManagers(string query, string userId = null, bool includeUser = false)
+        {
+            if (string.IsNullOrEmpty(query))
+            {
+                return new List<ADUser>();
+            }
+            AuthenticationContext authenticationContext = new AuthenticationContext(azureADSettingsDelegate.Value.Authority);
+            ClientCredential clientCred = new ClientCredential(azureADSettingsDelegate.Value.ClientId, azureADSettingsDelegate.Value.ClientSecret);
+
+            // ADAL includes an in memory cache, so this call will only send a message to the server if the cached token is expired.
+            AuthenticationResult authenticationResult = await authenticationContext.AcquireTokenAsync(azureADSettingsDelegate.Value.GraphResource, clientCred);
+            var token = authenticationResult.AccessToken;
+
+            var url = $"https://graph.microsoft.com/v1.0/groups/{appSettingsDelegate.Value.ManagersGroupId}/members/microsoft.graph.user?$expand=manager($levels=max;$select=id,displayName,userPrincipalName,jobTitle,mail,surname,givenName,mobilePhone,businessPhones,department,accountEnabled)&$search=\"displayName:{query}\" OR \"userPrincipalName:{query}\"&$orderby=displayName&$select=id,displayName,jobTitle,mail,surname,userPrincipalName,givenName,mobilePhone,businessPhones,department,accountEnabled&$count=true&ConsistencyLevel=eventual&$top=20&$filter=accountEnabled eq true";
+            var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Authorization = new AuthenticationHeaderValue("bearer", token.ToString());
+            var client = clientFactory.CreateClient();
+            var response = await client.SendAsync(request);
+
+            var resContent = await response.Content.ReadAsStringAsync();
+
+            if (response.IsSuccessStatusCode)
+            {
+                var resObj = JsonSerializer.Deserialize<ODataResponse>(resContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                var users = resObj.Value;
+
+                if (!includeUser && !string.IsNullOrEmpty(userId))
+                {
+                    users = users.Where(u => u.Id != userId && u.UserPrincipalName.ToLower() != userId.ToLower());
+                }
+                users = users.Where(u => u.UserPrincipalName.ToLower().EndsWith(appSettingsDelegate.Value.SearchFilterSuffix.ToLower()));
+                return users.Select(u => ADUser.FromUser(u));
             }
             else
             {
@@ -247,7 +284,7 @@ namespace OrgChart.API.Services
         public async Task<IEnumerable<ADUser>> GetUsersWithoutManagers()
         {
             var usersWithoutManagers = (await GetUsers()).Where(u => u.Manager == null);
-            var groupId = config["ManagersGroupId"];
+            var groupId = appSettingsDelegate.Value.ManagersGroupId;
             var client = await GetGraphServiceClient();
             var users = await client.Users.Request()
                 //.Expand("manager($select=id,displayName)")

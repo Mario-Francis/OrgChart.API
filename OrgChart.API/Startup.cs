@@ -13,6 +13,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Lib = SharepointCSOMLib;
 
 namespace OrgChart.API
 {
@@ -31,9 +32,14 @@ namespace OrgChart.API
             services.AddCors();
             services.AddControllers();
 
+            services.AddScoped<Lib.IListManager>((s) => GetSPListManager());
+
             services.AddScoped<IMicrosoftGraphService, MicrosoftGraphService>();
+            services.AddScoped<ISharePointService, SharePointService>();
 
             services.Configure<AzureADSettings>(Configuration.GetSection("AzureAD"));
+            services.Configure<SharePointSettings>(Configuration.GetSection("SharePoint"));
+            services.Configure<AppSettings>(Configuration.GetSection("AppSettings"));
 
             services.AddHttpClient();
         }
@@ -64,6 +70,19 @@ namespace OrgChart.API
             {
                 endpoints.MapControllers();
             });
+        }
+
+        private Lib.ListManager GetSPListManager()
+        {
+            var siteUrl = Configuration["SharePoint:SiteUrl"];
+            var clientId = Configuration["SharePoint:ClientId"];
+            var clientSecret = Configuration["SharePoint:ClientSecret"];
+            var tenant = Configuration["SharePoint:Tenant"];
+            var resource = Configuration["SharePoint:Resource"];
+            var grantType = Configuration["SharePoint:GrantType"];
+
+            var auth = new Lib.AuthenticationManager(siteUrl, grantType, resource, clientId, clientSecret, tenant);
+            return new Lib.ListManager(auth);
         }
     }
 }

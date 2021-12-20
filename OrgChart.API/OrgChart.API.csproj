@@ -10,6 +10,14 @@
     <PackageReference Include="Microsoft.Graph" Version="4.11.0" />
     <PackageReference Include="Microsoft.Identity.Client" Version="4.36.0" />
     <PackageReference Include="Microsoft.IdentityModel.Clients.ActiveDirectory" Version="5.2.9" />
+    <PackageReference Include="Microsoft.SharePointOnline.CSOM" Version="16.1.21909.12000" />
     <PackageReference Include="Serilog.Extensions.Logging.File" Version="2.0.0" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="6.15.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="SharepointCSOMLib">
+      <HintPath>\\Mac\Home\Documents\Visual Studio 2019\Projects\SharepointApps\SharepointCSOMLib\bin\Release\netcoreapp3.1\SharepointCSOMLib.dll</HintPath>
+    </Reference>
   </ItemGroup>
 </Project>
