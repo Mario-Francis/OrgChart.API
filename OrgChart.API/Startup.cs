@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using OrgChart.API.BackgroundServices;
 using OrgChart.API.DTOs;
 using OrgChart.API.Services;
 using System;
@@ -36,6 +37,10 @@ namespace OrgChart.API
 
             services.AddScoped<IMicrosoftGraphService, MicrosoftGraphService>();
             services.AddScoped<ISharePointService, SharePointService>();
+            services.AddScoped<IMailService, MailService>();
+            services.AddScoped<IReportService, ReportService>();
+
+            services.AddHostedService<ReportBackgroundService>();
 
             services.Configure<AzureADSettings>(Configuration.GetSection("AzureAD"));
             services.Configure<SharePointSettings>(Configuration.GetSection("SharePoint"));

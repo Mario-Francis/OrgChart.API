@@ -88,7 +88,7 @@ namespace OrgChart.API.Controllers
             }
         }
         [HttpGet("Search")]
-        public async Task<IActionResult> Search([FromQuery]string query, [FromQuery]string userId)
+        public async Task<IActionResult> Search([FromQuery] string query, [FromQuery] string userId)
         {
             try
             {
@@ -162,7 +162,7 @@ namespace OrgChart.API.Controllers
         }
 
         [HttpPost("{userId}/AssignManager")]
-        public async Task<IActionResult> AssignManager(string userId, ManagerUpdateRequest req, [FromQuery]bool force=false)
+        public async Task<IActionResult> AssignManager(string userId, ManagerUpdateRequest req, [FromQuery] bool force = false)
         {
             try
             {
@@ -177,7 +177,7 @@ namespace OrgChart.API.Controllers
         }
 
         [HttpPost("AssignManagers")]
-        public async Task<IActionResult> AssignManagers(ManagerUpdateRequest req, [FromQuery]bool force = false)
+        public async Task<IActionResult> AssignManagers(ManagerUpdateRequest req, [FromQuery] bool force = false)
         {
             try
             {
@@ -243,7 +243,7 @@ namespace OrgChart.API.Controllers
         {
             try
             {
-                if(item.ManagerEmail == item.ToManagerEmail)
+                if (item.ManagerEmail == item.ToManagerEmail)
                 {
                     return BadRequest(new APIResponse<object> { IsSuccess = true, Message = "Employee cannot be reassigned to self", Data = null });
                 }
@@ -279,7 +279,8 @@ namespace OrgChart.API.Controllers
                 if (items.Count() == 0)
                 {
                     return BadRequest(new APIResponse<object> { IsSuccess = true, Message = "List is empty", Data = null });
-                }else if(items.Any(i=> i.ManagerEmail == i.ToManagerEmail))
+                }
+                else if (items.Any(i => i.ManagerEmail == i.ToManagerEmail))
                 {
                     return BadRequest(new APIResponse<object> { IsSuccess = true, Message = "One or more employee(s) in list cannot be reassigned to self", Data = null });
                 }
@@ -288,11 +289,11 @@ namespace OrgChart.API.Controllers
                     var directs = items.Where(i => string.IsNullOrEmpty(i.ManagerEmail));
                     var approvals = items.Where(i => !string.IsNullOrEmpty(i.ManagerEmail));
 
-                    if(directs.Count() > 0)
+                    if (directs.Count() > 0)
                     {
                         await microsoftGraphService.AssignUsersManager(directs.Select(i => i.EmployeeEmail), directs.First().ToManagerEmail);
                     }
-                    if(approvals.Count() > 0)
+                    if (approvals.Count() > 0)
                     {
                         approvals = approvals.Select(i =>
                         {
@@ -320,17 +321,25 @@ namespace OrgChart.API.Controllers
                 {
                     return BadRequest(new APIResponse<object> { IsSuccess = true, Message = "Employee cannot be assigned to self", Data = null });
                 }
+                if (item.ManagerEmail == item.ToManagerEmail)
+                {
+                    return BadRequest(new APIResponse<object> { IsSuccess = true, Message = "Employee cannot be reassigned to manager", Data = null });
+                }
                 if (string.IsNullOrEmpty(item.ManagerEmail))
-                    {
-                        // bypass approval
-                        await microsoftGraphService.AssignUserManager(item.EmployeeEmail, item.ToManagerEmail);
-                    }
-                    else
-                    {
-                        // add approval
-                        item.ApprovalStatus = ApprovalStatus.PENDING.ToString();
-                        await sharePointService.AddApprovalItem(item);
-                    }
+                {
+                    // bypass approval
+                    await microsoftGraphService.AssignUserManager(item.EmployeeEmail, item.ToManagerEmail);
+                }
+                else if (item.RequestorEmail == item.ManagerEmail)
+                {
+                    await microsoftGraphService.AssignUserManager(item.EmployeeEmail, item.ToManagerEmail, true);
+                }
+                else
+                {
+                    // add approval
+                    item.ApprovalStatus = ApprovalStatus.PENDING.ToString();
+                    await sharePointService.AddApprovalItem(item);
+                }
                 return Ok(new APIResponse<object> { IsSuccess = true, Message = "Success", Data = null });
             }
             catch (Exception ex)
@@ -353,14 +362,18 @@ namespace OrgChart.API.Controllers
                 {
                     return BadRequest(new APIResponse<object> { IsSuccess = true, Message = "One or more employee(s) in list cannot be assigned to self", Data = null });
                 }
+                else if (items.Any(i => i.ManagerEmail == i.ToManagerEmail))
+                {
+                    return BadRequest(new APIResponse<object> { IsSuccess = true, Message = "One or more employee(s) in list cannot be reassigned to manager", Data = null });
+                }
                 else
                 {
-                    var directs = items.Where(i => string.IsNullOrEmpty(i.ManagerEmail));
-                    var approvals = items.Where(i => !string.IsNullOrEmpty(i.ManagerEmail));
+                    var directs = items.Where(i => string.IsNullOrEmpty(i.ManagerEmail) || i.RequestorEmail == i.ManagerEmail);
+                    var approvals = items.Where(i => !(string.IsNullOrEmpty(i.ManagerEmail) || i.RequestorEmail == i.ManagerEmail));
 
                     if (directs.Count() > 0)
                     {
-                        await microsoftGraphService.AssignUsersManager(directs.Select(i => i.EmployeeEmail), directs.First().ToManagerEmail);
+                        await microsoftGraphService.AssignUsersManager(directs.Select(i => i.EmployeeEmail), directs.First().ToManagerEmail, true);
                     }
                     if (approvals.Count() > 0)
                     {
@@ -392,9 +405,9 @@ namespace OrgChart.API.Controllers
                 {
                     return BadRequest(new APIResponse<object> { IsSuccess = true, Message = "Item id is invalid", Data = null });
                 }
-
+                var comment = string.IsNullOrEmpty(item.Comment) ? null : item.Comment;
                 await microsoftGraphService.AssignUserManager(_item.EmployeeEmail, _item.ToManagerEmail, true);
-                await sharePointService.UpdateApprovalItem(item.Id, ApprovalStatus.APPROVED.ToString());
+                await sharePointService.UpdateApprovalItem(item.Id, ApprovalStatus.APPROVED.ToString(), comment);
 
                 return Ok(new APIResponse<object> { IsSuccess = true, Message = "Success", Data = null });
             }

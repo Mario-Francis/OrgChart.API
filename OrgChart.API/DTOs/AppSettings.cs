@@ -10,5 +10,9 @@ namespace OrgChart.API.DTOs
         public string ManagersGroupId { get; set; }
         public string ManagersGroupMail { get; set; }
         public string SearchFilterSuffix { get; set; }
+        public EmailSMTPConfig EmailSMTPConfig { get; set; }
+
+        public bool ReportServiceEnabled { get; set; }
+        public int ReportServiceExecutionInterval { get; set; } // in minutes
     }
 }
