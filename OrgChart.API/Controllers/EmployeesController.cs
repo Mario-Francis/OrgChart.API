@@ -245,7 +245,7 @@ namespace OrgChart.API.Controllers
             {
                 if (item.ManagerEmail == item.ToManagerEmail)
                 {
-                    return BadRequest(new APIResponse<object> { IsSuccess = true, Message = "Employee cannot be reassigned to self", Data = null });
+                    return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "Employee cannot be reassigned to self", Data = null });
                 }
                 else
                 {
@@ -278,11 +278,11 @@ namespace OrgChart.API.Controllers
             {
                 if (items.Count() == 0)
                 {
-                    return BadRequest(new APIResponse<object> { IsSuccess = true, Message = "List is empty", Data = null });
+                    return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "List is empty", Data = null });
                 }
                 else if (items.Any(i => i.ManagerEmail == i.ToManagerEmail))
                 {
-                    return BadRequest(new APIResponse<object> { IsSuccess = true, Message = "One or more employee(s) in list cannot be reassigned to self", Data = null });
+                    return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "One or more employee(s) in list cannot be reassigned to self", Data = null });
                 }
                 else
                 {
@@ -319,11 +319,11 @@ namespace OrgChart.API.Controllers
             {
                 if (item.RequestorEmail == item.ToManagerEmail)
                 {
-                    return BadRequest(new APIResponse<object> { IsSuccess = true, Message = "Employee cannot be assigned to self", Data = null });
+                    return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "Employee cannot be assigned to self", Data = null });
                 }
                 if (item.ManagerEmail == item.ToManagerEmail)
                 {
-                    return BadRequest(new APIResponse<object> { IsSuccess = true, Message = "Employee cannot be reassigned to manager", Data = null });
+                    return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "Employee cannot be reassigned to manager", Data = null });
                 }
                 if (string.IsNullOrEmpty(item.ManagerEmail))
                 {
@@ -356,15 +356,15 @@ namespace OrgChart.API.Controllers
             {
                 if (items.Count() == 0)
                 {
-                    return BadRequest(new APIResponse<object> { IsSuccess = true, Message = "List is empty", Data = null });
+                    return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "List is empty", Data = null });
                 }
                 else if (items.Any(i => i.RequestorEmail == i.ToManagerEmail))
                 {
-                    return BadRequest(new APIResponse<object> { IsSuccess = true, Message = "One or more employee(s) in list cannot be assigned to self", Data = null });
+                    return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "One or more employee(s) in list cannot be assigned to self", Data = null });
                 }
                 else if (items.Any(i => i.ManagerEmail == i.ToManagerEmail))
                 {
-                    return BadRequest(new APIResponse<object> { IsSuccess = true, Message = "One or more employee(s) in list cannot be reassigned to manager", Data = null });
+                    return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "One or more employee(s) in list cannot be reassigned to manager", Data = null });
                 }
                 else
                 {
@@ -403,13 +403,23 @@ namespace OrgChart.API.Controllers
                 var _item = await sharePointService.GetApprovalItem(item.Id);
                 if (_item == null)
                 {
-                    return BadRequest(new APIResponse<object> { IsSuccess = true, Message = "Item id is invalid", Data = null });
+                    return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "Item id is invalid", Data = null });
                 }
                 var comment = string.IsNullOrEmpty(item.Comment) ? null : item.Comment;
-                await microsoftGraphService.AssignUserManager(_item.EmployeeEmail, _item.ToManagerEmail, true);
-                await sharePointService.UpdateApprovalItem(item.Id, ApprovalStatus.APPROVED.ToString(), comment);
 
-                return Ok(new APIResponse<object> { IsSuccess = true, Message = "Success", Data = null });
+                // get user
+                var user = await microsoftGraphService.GetUser(_item.EmployeeEmail.ToLower());
+                if (user.Manager.Email.ToLower() != _item.ManagerEmail.ToLower())
+                {
+                    return BadRequest(new APIResponse<object> { IsSuccess = false, Message = $"You're no longer the manager of {_item.EmployeeName}. Kindly decline this request.", Data = null });
+                }
+                else
+                {
+                    await microsoftGraphService.AssignUserManager(_item.EmployeeEmail, _item.ToManagerEmail, true);
+                    await sharePointService.UpdateApprovalItem(item.Id, ApprovalStatus.APPROVED.ToString(), comment);
+
+                    return Ok(new APIResponse<object> { IsSuccess = true, Message = "Success", Data = null });
+                }
             }
             catch (Exception ex)
             {
@@ -426,12 +436,12 @@ namespace OrgChart.API.Controllers
                 var _item = await sharePointService.GetApprovalItem(item.Id);
                 if (_item == null)
                 {
-                    return BadRequest(new APIResponse<object> { IsSuccess = true, Message = "Item id is invalid", Data = null });
+                    return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "Item id is invalid", Data = null });
                 }
 
                 if (string.IsNullOrEmpty(item.Comment))
                 {
-                    return BadRequest(new APIResponse<object> { IsSuccess = true, Message = "Comment is required", Data = null });
+                    return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "Comment is required", Data = null });
                 }
 
                 //await microsoftGraphService.AssignUserManager(_item.EmployeeEmail, _item.ToManagerEmail, true);
