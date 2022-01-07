@@ -243,7 +243,7 @@ namespace OrgChart.API.Controllers
         {
             try
             {
-                if (item.ManagerEmail == item.ToManagerEmail)
+                if (item.ManagerEmail.ToLower() == item.ToManagerEmail.ToLower())
                 {
                     return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "Employee cannot be reassigned to self", Data = null });
                 }
@@ -280,7 +280,7 @@ namespace OrgChart.API.Controllers
                 {
                     return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "List is empty", Data = null });
                 }
-                else if (items.Any(i => i.ManagerEmail == i.ToManagerEmail))
+                else if (items.Any(i => i.ManagerEmail.ToLower() == i.ToManagerEmail.ToLower()))
                 {
                     return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "One or more employee(s) in list cannot be reassigned to self", Data = null });
                 }
@@ -317,11 +317,11 @@ namespace OrgChart.API.Controllers
         {
             try
             {
-                if (item.RequestorEmail == item.ToManagerEmail)
+                if (item.RequestorEmail.ToLower() == item.ToManagerEmail.ToLower())
                 {
                     return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "Employee cannot be assigned to self", Data = null });
                 }
-                if (item.ManagerEmail == item.ToManagerEmail)
+                if (item.ManagerEmail.ToLower() == item.ToManagerEmail.ToLower())
                 {
                     return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "Employee cannot be reassigned to manager", Data = null });
                 }
@@ -330,7 +330,7 @@ namespace OrgChart.API.Controllers
                     // bypass approval
                     await microsoftGraphService.AssignUserManager(item.EmployeeEmail, item.ToManagerEmail);
                 }
-                else if (item.RequestorEmail == item.ManagerEmail)
+                else if (item.RequestorEmail.ToLower() == item.ManagerEmail.ToLower())
                 {
                     await microsoftGraphService.AssignUserManager(item.EmployeeEmail, item.ToManagerEmail, true);
                 }
@@ -358,18 +358,18 @@ namespace OrgChart.API.Controllers
                 {
                     return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "List is empty", Data = null });
                 }
-                else if (items.Any(i => i.RequestorEmail == i.ToManagerEmail))
+                else if (items.Any(i => i.RequestorEmail.ToLower() == i.ToManagerEmail.ToLower()))
                 {
                     return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "One or more employee(s) in list cannot be assigned to self", Data = null });
                 }
-                else if (items.Any(i => i.ManagerEmail == i.ToManagerEmail))
+                else if (items.Any(i => i.ManagerEmail.ToLower() == i.ToManagerEmail.ToLower()))
                 {
                     return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "One or more employee(s) in list cannot be reassigned to manager", Data = null });
                 }
                 else
                 {
-                    var directs = items.Where(i => string.IsNullOrEmpty(i.ManagerEmail) || i.RequestorEmail == i.ManagerEmail);
-                    var approvals = items.Where(i => !(string.IsNullOrEmpty(i.ManagerEmail) || i.RequestorEmail == i.ManagerEmail));
+                    var directs = items.Where(i => string.IsNullOrEmpty(i.ManagerEmail) || i.RequestorEmail.ToLower() == i.ManagerEmail.ToLower());
+                    var approvals = items.Where(i => !(string.IsNullOrEmpty(i.ManagerEmail) || i.RequestorEmail.ToLower() == i.ManagerEmail.ToLower()));
 
                     if (directs.Count() > 0)
                     {

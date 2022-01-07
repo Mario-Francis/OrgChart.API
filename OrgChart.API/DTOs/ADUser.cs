@@ -37,8 +37,8 @@ namespace OrgChart.API.DTOs
                 GivenName = user.GivenName,
                 Surname = user.Surname,
                 DisplayName = user.DisplayName,
-                Email = user.UserPrincipalName,
-                UserPrincipalName=user.UserPrincipalName,
+                Email = user.UserPrincipalName.ToLower(),
+                UserPrincipalName=user.UserPrincipalName.ToLower(),
                 JobTitle = user.JobTitle,
                 Department = user.Department,
                 BusinessPhone = user.BusinessPhones?.FirstOrDefault(),
@@ -53,7 +53,7 @@ namespace OrgChart.API.DTOs
         {
             var copy =  (ADUser)this.MemberwiseClone();
             copy.ManagerId = Manager?.Id;
-            copy.Email = copy.UserPrincipalName;
+            copy.Email = copy.UserPrincipalName.ToLower();
             return copy;
         }
     }
