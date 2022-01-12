@@ -73,6 +73,7 @@ namespace OrgChart.API.Services
                 ListName = spSettingsDelegate.Value.ApprovalList,
                 SearchParams = new List<KeyValuePair<string, string>>
                {
+                   new KeyValuePair<string, string>("approvalType", ApprovalTypes.Approval.ToString()),
                    new KeyValuePair<string, string>("requestorEmail", requestorEmail),
                    new KeyValuePair<string, string>("approvalStatus", ApprovalStatus.PENDING.ToString())
                },
@@ -91,6 +92,7 @@ namespace OrgChart.API.Services
                 ListName = spSettingsDelegate.Value.ApprovalList,
                 SearchParams = new List<KeyValuePair<string, string>>
                {
+                   new KeyValuePair<string, string>("approvalType", ApprovalTypes.Approval.ToString()),
                    new KeyValuePair<string, string>("managerEmail", managerEmail),
                    new KeyValuePair<string, string>("approvalStatus", ApprovalStatus.PENDING.ToString())
                },
@@ -102,6 +104,62 @@ namespace OrgChart.API.Services
             return items;
         }
 
+        public async Task<IEnumerable<ApprovalItem>> GetApprovalItemsPendingAcceptance(string toManagerEmail)
+        {
+            var req = new SearchListByFieldValuesRequest
+            {
+                ListName = spSettingsDelegate.Value.ApprovalList,
+                SearchParams = new List<KeyValuePair<string, string>>
+               {
+                   new KeyValuePair<string, string>("approvalType", ApprovalTypes.Acceptance.ToString()),
+                   new KeyValuePair<string, string>("toManager", toManagerEmail),
+                   new KeyValuePair<string, string>("approvalStatus", ApprovalStatus.PENDING.ToString())
+               },
+                Options = new PagingOptions { Length = 1000, SortByDateCreated = true, SortByDateCreatedDir = "DESC", StartIndex = 0 }
+            };
+            var result = await listMgr.SearchListByFieldValues(req, 1000);
+            var items = result.ListItems.Select(i => ApprovalItem.FromSPListItem(i));
 
+            return items;
+        }
+
+        public async Task<bool> IsEmployeePendingRequestExists(string employeeEmail)
+        {
+            var req = new SearchListByFieldValuesRequest
+            {
+                ListName = spSettingsDelegate.Value.ApprovalList,
+                SearchParams = new List<KeyValuePair<string, string>>
+               {
+                   new KeyValuePair<string, string>("employeeEmail", employeeEmail),
+                   new KeyValuePair<string, string>("approvalStatus", ApprovalStatus.PENDING.ToString())
+               },
+                Options = new PagingOptions { Length = 1000, SortByDateCreated = true, SortByDateCreatedDir = "DESC", StartIndex = 0 }
+            };
+            var result = await listMgr.SearchListByFieldValues(req, 1000);
+            //var items = result.ListItems.Select(i => ApprovalItem.FromSPListItem(i));
+            return result.TotalResultCount > 0;
+        }
+
+        public async Task<bool> IsManagerHasMultiplePendingRequestForEmployee(string employeeEmail, string managerEmail)
+        {
+            var req = new SearchListByFieldValuesRequest
+            {
+                ListName = spSettingsDelegate.Value.ApprovalList,
+                SearchParams = new List<KeyValuePair<string, string>>
+               {
+                   new KeyValuePair<string, string>("employeeEmail", employeeEmail),
+                   new KeyValuePair<string, string>("managerEmail", managerEmail),
+                   new KeyValuePair<string, string>("approvalStatus", ApprovalStatus.PENDING.ToString())
+               },
+                Options = new PagingOptions { Length = 1000, SortByDateCreated = true, SortByDateCreatedDir = "DESC", StartIndex = 0 }
+            };
+            var result = await listMgr.SearchListByFieldValues(req, 1000);
+            //var items = result.ListItems.Select(i => ApprovalItem.FromSPListItem(i));
+            return result.TotalResultCount > 1;
+        }
+        public async Task DeleteApprovalItem(int itemId)
+        {
+            await listMgr.DeleteItem(itemId, spSettingsDelegate.Value.ApprovalList);
+        }
     }
 }

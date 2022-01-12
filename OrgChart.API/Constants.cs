@@ -12,6 +12,12 @@ namespace OrgChart.API
         APPROVED
     }
 
+    public enum ApprovalTypes
+    {
+        Approval,
+        Acceptance
+    }
+
     public class Constants
     {
     }
