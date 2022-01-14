@@ -498,10 +498,11 @@ namespace OrgChart.API.Controllers
                         else
                         {
                             await sharePointService.UpdateApprovalItem(item.Id, ApprovalStatus.APPROVED.ToString(), comment);
-                            item.ApprovalStatus = ApprovalStatus.PENDING.ToString();
-                            item.ApprovalType = ApprovalTypes.Acceptance.ToString();
-                            item.Comment = null;
-                            await sharePointService.AddApprovalItem(item);
+                            _item.ApprovalStatus = ApprovalStatus.PENDING.ToString();
+                            _item.ApprovalType = ApprovalTypes.Acceptance.ToString();
+                            _item.Comment = null;
+                            _item.ReviewDate = null;
+                            await sharePointService.AddApprovalItem(_item);
                         }
                     }
                 }
