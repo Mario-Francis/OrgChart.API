@@ -8,6 +8,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using OrgChart.API.BackgroundServices;
 using OrgChart.API.DTOs;
+using OrgChart.API.Middlewares;
 using OrgChart.API.Services;
 using System;
 using System.Collections.Generic;
@@ -62,12 +63,15 @@ namespace OrgChart.API
                 app.UseHsts();
             }
 
+            
             app.UseHttpsRedirection();
 
             app.UseRouting();
             app.UseCors(x => x.AllowAnyOrigin()
            .AllowAnyHeader()
            .AllowAnyMethod());
+
+            app.UseMiddleware<AuthMiddleware>();
 
             app.UseAuthorization();
 

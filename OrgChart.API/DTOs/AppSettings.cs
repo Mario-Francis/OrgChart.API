@@ -14,5 +14,6 @@ namespace OrgChart.API.DTOs
 
         public bool ReportServiceEnabled { get; set; }
         public int ReportServiceExecutionInterval { get; set; } // in minutes
+        public string APIKey { get; set; }
     }
 }
