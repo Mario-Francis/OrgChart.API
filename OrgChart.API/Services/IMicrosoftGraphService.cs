@@ -21,5 +21,9 @@ namespace OrgChart.API.Services
         Task AssignUsersManager(IEnumerable<string> userIds, string managerId, bool forceAssign = false);
         Task UnassignUsersManager(IEnumerable<string> userIds);
         Task<bool> UserExistsInGroup(string userId, string groupId);
+
+        Task<UserProfile> GetProfile(string userId);
+        Task UpdateProfile(string userId, Profile profile);
+
     }
 }

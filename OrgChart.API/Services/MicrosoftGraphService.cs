@@ -16,7 +16,7 @@ using IHttpClientFactory = System.Net.Http.IHttpClientFactory;
 
 namespace OrgChart.API.Services
 {
-    public class MicrosoftGraphService : IMicrosoftGraphService
+    public partial class MicrosoftGraphService : IMicrosoftGraphService
     {
         private readonly IOptionsSnapshot<AzureADSettings> azureADSettingsDelegate;
         private readonly IHttpClientFactory clientFactory;
@@ -179,7 +179,7 @@ namespace OrgChart.API.Services
             }
         }
 
-        public async Task<IEnumerable<ADUser>> SearchUsers(string query, string userId=null, bool includeUser = false)
+        public async Task<IEnumerable<ADUser>> SearchUsers(string query, string userId = null, bool includeUser = false)
         {
             if (string.IsNullOrEmpty(query))
             {
@@ -204,13 +204,13 @@ namespace OrgChart.API.Services
             {
                 var resObj = JsonSerializer.Deserialize<ODataResponse>(resContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                 var users = resObj.Value;
-               
-                if(!includeUser && !string.IsNullOrEmpty(userId))
+
+                if (!includeUser && !string.IsNullOrEmpty(userId))
                 {
-                    users = users.Where(u => u.Id != userId && u.UserPrincipalName.ToLower()!=userId.ToLower());
+                    users = users.Where(u => u.Id != userId && u.UserPrincipalName.ToLower() != userId.ToLower());
                 }
                 users = users.Where(u => u.UserPrincipalName.ToLower().EndsWith(appSettingsDelegate.Value.SearchFilterSuffix.ToLower()));
-                return users.Select(u=> ADUser.FromUser(u));
+                return users.Select(u => ADUser.FromUser(u));
             }
             else
             {
@@ -349,7 +349,7 @@ namespace OrgChart.API.Services
             });
         }
 
-        public async Task AssignUserManager(string userId, string managerId, bool forceAssign=false)
+        public async Task AssignUserManager(string userId, string managerId, bool forceAssign = false)
         {
             if (forceAssign)
             {
@@ -425,5 +425,34 @@ namespace OrgChart.API.Services
                 return false;
             }
         }
+
+
+        public async Task<UserProfile> GetProfile(string userId)
+        {
+            var profile = await GetUserProfile(userId);
+            profile.Profile.Base64Photo = await GetUserPhoto(userId);
+
+            return profile;
+        }
+
+        public async Task UpdateProfile(string userId, Profile profile)
+        {
+            if (!string.IsNullOrEmpty(profile.Base64Photo))
+            {
+                if (!profile.Base64Photo.IsBase64String())
+                {
+                    throw new Exception("Invalid base64 photo");
+                }
+                else
+                {
+                    await UpdateUserPhoto(userId, profile.Base64Photo);
+                }
+            }
+
+            await UpdateUserProfile(userId, profile);
+            await UpdateUserAboutMe(userId, profile);
+
+        }
+
     }
 }
