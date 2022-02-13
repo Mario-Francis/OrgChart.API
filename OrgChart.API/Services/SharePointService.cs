@@ -161,5 +161,116 @@ namespace OrgChart.API.Services
         {
             await listMgr.DeleteItem(itemId, spSettingsDelegate.Value.ApprovalList);
         }
+
+        //=============================== Profile  Approval ==============================
+        public async Task AddProfileApprovalItem(ProfileApprovalItem item)
+        {
+            var req = new AddItemRequest
+            {
+                ListName = spSettingsDelegate.Value.ProfileApprovalList,
+                FieldValues = item.ToKeyValuePairs()
+            };
+            await listMgr.AddItem(req);
+        }
+
+
+        public async Task<ProfileApprovalItem> GetProfileApprovalItem(int itemId)
+        {
+            var result = await listMgr.GetItem(itemId, spSettingsDelegate.Value.ProfileApprovalList);
+            var item = ProfileApprovalItem.FromSPListItem(result);
+
+            return item;
+        }
+
+        public async Task UpdateProfileApprovalItem(int id, string approvalStatus, string comment = null)
+        {
+            var values = new List<KeyValuePair<string, string>>();
+            values.Add(new KeyValuePair<string, string>("approvalStatus", approvalStatus));
+            values.Add(new KeyValuePair<string, string>("reviewDate", DateTime.Now.ToString("MM-dd-yyyy")));
+            if (!string.IsNullOrEmpty(comment))
+            {
+                values.Add(new KeyValuePair<string, string>("comment", comment));
+            }
+            var req = new UpdateItemRequest
+            {
+                Id = id,
+                ListName = spSettingsDelegate.Value.ProfileApprovalList,
+                FieldValues = values
+            };
+            await listMgr.UpdateItem(req);
+        }
+
+        public async Task<IEnumerable<ProfileApprovalItem>> GetInitiatedPendingProfileApprovalItems(string employeeEmail)
+        {
+            var req = new SearchListByFieldValuesRequest
+            {
+                ListName = spSettingsDelegate.Value.ProfileApprovalList,
+                SearchParams = new List<KeyValuePair<string, string>>
+               {
+                   new KeyValuePair<string, string>("employeeEmail", employeeEmail),
+                   new KeyValuePair<string, string>("approvalStatus", ApprovalStatus.PENDING.ToString())
+               },
+                Options = new PagingOptions { Length = 1000, SortByDateCreated = true, SortByDateCreatedDir = "DESC", StartIndex = 0 }
+            };
+            var result = await listMgr.SearchListByFieldValues(req, 1000);
+            var items = result.ListItems.Select(i => ProfileApprovalItem.FromSPListItem(i));
+
+            return items;
+        }
+
+        public async Task<IEnumerable<ProfileApprovalItem>> GetProfileApprovalItemsPendingAction(string managerEmail)
+        {
+            var req = new SearchListByFieldValuesRequest
+            {
+                ListName = spSettingsDelegate.Value.ProfileApprovalList,
+                SearchParams = new List<KeyValuePair<string, string>>
+               {
+                   new KeyValuePair<string, string>("managerEmail", managerEmail),
+                   new KeyValuePair<string, string>("approvalStatus", ApprovalStatus.PENDING.ToString())
+               },
+                Options = new PagingOptions { Length = 1000, SortByDateCreated = true, SortByDateCreatedDir = "DESC", StartIndex = 0 }
+            };
+            var result = await listMgr.SearchListByFieldValues(req, 1000);
+            var items = result.ListItems.Select(i => ProfileApprovalItem.FromSPListItem(i));
+
+            return items;
+        }
+
+        public async Task<bool> IsEmployeePendingProfileRequestExists(string employeeEmail)
+        {
+            var req = new SearchListByFieldValuesRequest
+            {
+                ListName = spSettingsDelegate.Value.ProfileApprovalList,
+                SearchParams = new List<KeyValuePair<string, string>>
+               {
+                   new KeyValuePair<string, string>("employeeEmail", employeeEmail),
+                   new KeyValuePair<string, string>("approvalStatus", ApprovalStatus.PENDING.ToString())
+               },
+                Options = new PagingOptions { Length = 1000, SortByDateCreated = true, SortByDateCreatedDir = "DESC", StartIndex = 0 }
+            };
+            var result = await listMgr.SearchListByFieldValues(req, 1000);
+            return result.TotalResultCount > 0;
+        }
+
+        public async Task<bool> IsManagerHasMultiplePendingProfileRequestForEmployee(string employeeEmail, string managerEmail)
+        {
+            var req = new SearchListByFieldValuesRequest
+            {
+                ListName = spSettingsDelegate.Value.ProfileApprovalList,
+                SearchParams = new List<KeyValuePair<string, string>>
+               {
+                   new KeyValuePair<string, string>("employeeEmail", employeeEmail),
+                   new KeyValuePair<string, string>("managerEmail", managerEmail),
+                   new KeyValuePair<string, string>("approvalStatus", ApprovalStatus.PENDING.ToString())
+               },
+                Options = new PagingOptions { Length = 1000, SortByDateCreated = true, SortByDateCreatedDir = "DESC", StartIndex = 0 }
+            };
+            var result = await listMgr.SearchListByFieldValues(req, 1000);
+            return result.TotalResultCount > 1;
+        }
+        public async Task DeleteProfileApprovalItem(int itemId)
+        {
+            await listMgr.DeleteItem(itemId, spSettingsDelegate.Value.ProfileApprovalList);
+        }
     }
 }

@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using OrgChart.API.DTOs;
 using OrgChart.API.Services;
 using SharepointCSOMLib;
@@ -18,14 +19,17 @@ namespace OrgChart.API.Controllers
         private readonly IMicrosoftGraphService microsoftGraphService;
         private readonly ISharePointService sharePointService;
         private readonly ILogger<EmployeesController> logger;
+        private readonly IOptionsSnapshot<AppSettings> appSettingsDelegate;
 
         public EmployeesController(IMicrosoftGraphService microsoftGraphService,
             ISharePointService sharePointService,
-            ILogger<EmployeesController> logger)
+            ILogger<EmployeesController> logger,
+            IOptionsSnapshot<AppSettings> appSettingsDelegate)
         {
             this.microsoftGraphService = microsoftGraphService;
             this.sharePointService = sharePointService;
             this.logger = logger;
+            this.appSettingsDelegate = appSettingsDelegate;
         }
 
         [HttpGet("")]
@@ -625,6 +629,9 @@ namespace OrgChart.API.Controllers
         }
 
 
+
+        //====================== Profile ==========================
+
         [HttpGet("{userId}/profile")]
         public async Task<IActionResult> GetUserProfile(string userId)
         {
@@ -645,8 +652,38 @@ namespace OrgChart.API.Controllers
         {
             try
             {
-                await microsoftGraphService.UpdateProfile(userId, profile);
-                return Ok(new APIResponse<object> { IsSuccess = true, Message = "Success", Data = null });
+                if (await microsoftGraphService.UserExistsInGroup(userId, appSettingsDelegate.Value.ManagersGroupId))
+                {
+                    await microsoftGraphService.UpdateProfile(userId, profile);
+                    return Ok(new APIResponse<object> { IsSuccess = true, Message = "Profile updated successfully", Data = null });
+                }
+                else
+                {
+                    var user = await microsoftGraphService.GetUser(userId);
+                    if (user.Manager == null)
+                    {
+                        return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "You have not been assigned a manager", Data = null });
+                    }
+                    else
+                    {
+                        if (await sharePointService.IsEmployeePendingProfileRequestExists(user.Id))
+                        {
+                            return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "You still have pending profile update request with your manager", Data = null });
+                        }
+                        else
+                        {
+                            var item = ProfileApprovalItem.FromProfile(profile);
+                            item.EmployeeEmail = user.Email.ToLower();
+                            item.EmployeeName = user.DisplayName;
+                            item.ManagerEmail = user.Manager.Email.ToLower();
+                            item.ManagerName = user.Manager.DisplayName;
+                            await sharePointService.AddProfileApprovalItem(item);
+
+                            return Ok(new APIResponse<object> { IsSuccess = true, Message = "Profile update is now pending your manager's approval", Data = null });
+                        }
+                    }
+                }
+
             }
             catch (Exception ex)
             {
@@ -656,6 +693,133 @@ namespace OrgChart.API.Controllers
         }
 
 
+        // approve
+        [HttpPost("ApproveProfileItem")]
+        public async Task<IActionResult> ApproveProfileItem(ProfileApprovalItem item)
+        {
+            try
+            {
+                var _item = await sharePointService.GetProfileApprovalItem((int)item.Id);
+                if (_item == null)
+                {
+                    return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "Item id is invalid", Data = null });
+                }
+                var comment = string.IsNullOrEmpty(item.Comment) ? null : item.Comment;
+
+                // get user
+                var user = await microsoftGraphService.GetUser(_item.EmployeeEmail.ToLower());
+                if (user.Manager.Email.ToLower() != _item.ManagerEmail.ToLower())
+                {
+                    return BadRequest(new APIResponse<object> { IsSuccess = false, Message = $"You're no longer the manager of {_item.EmployeeName}. Kindly decline this request.", Data = null });
+                }
+
+                if (await sharePointService.IsManagerHasMultiplePendingProfileRequestForEmployee(_item.EmployeeEmail, _item.ManagerEmail))
+                {
+                    return BadRequest(new APIResponse<object> { IsSuccess = false, Message = $"There are more than one pending request for {_item.EmployeeName}. Kindly decline others so you can approve only one", Data = null });
+                }
+                else
+                {
+                    await microsoftGraphService.UpdateProfile(user.Email.ToLower(), _item.ToProfile());
+                    await sharePointService.UpdateProfileApprovalItem(item.Id, ApprovalStatus.APPROVED.ToString(), comment);
+                }
+
+                return Ok(new APIResponse<object> { IsSuccess = true, Message = "Success", Data = null });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error encountered while approving item");
+                return StatusCode(500, new APIResponse<object> { IsSuccess = false, Message = ex.Message });
+            }
+        }
+
+        // decline
+        [HttpPost("DeclineProfileItem")]
+        public async Task<IActionResult> DeclineProfileItem(ProfileApprovalItem item)
+        {
+            try
+            {
+                var _item = await sharePointService.GetProfileApprovalItem(item.Id);
+                if (_item == null)
+                {
+                    return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "Item id is invalid", Data = null });
+                }
+
+                if (string.IsNullOrEmpty(item.Comment))
+                {
+                    return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "Comment is required", Data = null });
+                }
+
+                //await microsoftGraphService.AssignUserManager(_item.EmployeeEmail, _item.ToManagerEmail, true);
+                await sharePointService.UpdateProfileApprovalItem(item.Id, ApprovalStatus.DECLINED.ToString(), item.Comment);
+
+                return Ok(new APIResponse<object> { IsSuccess = true, Message = "Success", Data = null });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error encountered while declining item");
+                return StatusCode(500, new APIResponse<object> { IsSuccess = false, Message = ex.Message });
+            }
+        }
+
+        // cancel
+        [HttpPost("CancelProfileItem")]
+        public async Task<IActionResult> CancelProfileItem(ProfileApprovalItem item)
+        {
+            try
+            {
+                var _item = await sharePointService.GetProfileApprovalItem(item.Id);
+                if (_item == null)
+                {
+                    return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "Item id is invalid", Data = null });
+                }
+
+                if (_item.ApprovalStatus != ApprovalStatus.PENDING.ToString())
+                {
+                    return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "Request cannot be canceled as it has been acted upon by your manager", Data = null });
+                }
+                else
+                {
+                    await sharePointService.DeleteProfileApprovalItem(item.Id);
+                }
+
+                return Ok(new APIResponse<object> { IsSuccess = true, Message = "Success", Data = null });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error encountered while canceling item");
+                return StatusCode(500, new APIResponse<object> { IsSuccess = false, Message = ex.Message });
+            }
+        }
+
+        [HttpGet("{userId}/ProfileApprovalItems/Initiated")]
+        public async Task<IActionResult> GetPendingRequestedProfileApprovalItems(string userId)
+        {
+            try
+            {
+                var items = await sharePointService.GetInitiatedPendingProfileApprovalItems(userId);
+                return Ok(new APIResponse<object> { IsSuccess = true, Message = "Success", Data = items });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error encountered fetching pending requested profile approval items");
+                return StatusCode(500, new APIResponse<object> { IsSuccess = false, Message = ex.Message });
+            }
+        }
+
+        [HttpGet("{userId}/ProfileApprovalItems/PendingAction")]
+        public async Task<IActionResult> GetProfileApprovalItemsPendingAction(string userId)
+        {
+            try
+            {
+                var items = await sharePointService.GetProfileApprovalItemsPendingAction(userId);
+                return Ok(new APIResponse<object> { IsSuccess = true, Message = "Success", Data = items });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error encountered fetching profile approval items pending action");
+                return StatusCode(500, new APIResponse<object> { IsSuccess = false, Message = ex.Message });
+            }
+        }
 
 
         //[HttpGet("test")]
