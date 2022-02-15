@@ -449,7 +449,7 @@ namespace OrgChart.API.Services
                 }
             }
 
-            await UpdateUserProfile(userId, profile);
+            await HttpUpdateUserProfile(userId, profile);
             await UpdateUserAboutMe(userId, profile);
 
         }

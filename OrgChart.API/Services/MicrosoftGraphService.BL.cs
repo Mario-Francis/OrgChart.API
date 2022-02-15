@@ -1,8 +1,14 @@
 ﻿using Microsoft.Graph;
+using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using OrgChart.API.DTOs;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace OrgChart.API.Services
@@ -93,6 +99,43 @@ namespace OrgChart.API.Services
             await client.Users[userId]
                 .Request()
                 .UpdateAsync(user);
+
+        }
+
+        private async Task HttpUpdateUserProfile(string userId, Profile profile)
+        {
+            AuthenticationContext authenticationContext = new AuthenticationContext(azureADSettingsDelegate.Value.Authority);
+            ClientCredential clientCred = new ClientCredential(azureADSettingsDelegate.Value.ClientId, azureADSettingsDelegate.Value.ClientSecret);
+
+            // ADAL includes an in memory cache, so this call will only send a message to the server if the cached token is expired.
+            AuthenticationResult authenticationResult = await authenticationContext.AcquireTokenAsync(azureADSettingsDelegate.Value.GraphResource, clientCred);
+            var token = authenticationResult.AccessToken;
+
+            var url = $"https://graph.microsoft.com/v1.0/users/{userId}";
+            var request = new HttpRequestMessage(HttpMethod.Patch, url);
+            request.Headers.Authorization = new AuthenticationHeaderValue("bearer", token.ToString());
+            var body = JsonSerializer.Serialize(new
+            {
+                businessPhones = new List<string> { profile.BusinessPhone },
+                mobilePhone = profile.MobilePhone,
+                officeLocation = profile.Office,
+                streetAddress = profile.Street,
+                postalCode = profile.PostalCode,
+                city = profile.City,
+                state = profile.State,
+                country = profile.Country
+            });
+            request.Content = new StringContent(body, Encoding.UTF8, "application/json");
+
+           var client = clientFactory.CreateClient();
+            var response = await client.SendAsync(request);
+
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                var resContent = await response.Content.ReadAsStringAsync();
+                throw new Exception(resContent);
+            }
 
         }
 

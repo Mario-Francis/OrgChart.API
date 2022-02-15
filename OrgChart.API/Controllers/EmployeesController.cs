@@ -666,7 +666,7 @@ namespace OrgChart.API.Controllers
                     }
                     else
                     {
-                        if (await sharePointService.IsEmployeePendingProfileRequestExists(user.Id))
+                        if (await sharePointService.IsEmployeePendingProfileRequestExists(userId))
                         {
                             return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "You still have pending profile update request with your manager", Data = null });
                         }
