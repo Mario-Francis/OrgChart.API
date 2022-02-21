@@ -14,5 +14,9 @@ namespace OrgChart.API.Services
         Task UpdateApprovalItem(int id, string approvalStatus, string comment = null);
         Task<IEnumerable<ApprovalItem>> GetInitiatedPendingApprovalItems(string requestorEmail);
         Task<IEnumerable<ApprovalItem>> GetApprovalItemsPendingAction(string managerEmail);
+        Task<IEnumerable<ApprovalItem>> GetApprovalItemsPendingAcceptance(string toManagerEmail);
+        Task<bool> IsEmployeePendingRequestExists(string employeeEmail);
+        Task<bool> IsManagerHasMultiplePendingRequestForEmployee(string employeeEmail, string managerEmail);
+        Task DeleteApprovalItem(int itemId);
     }
 }

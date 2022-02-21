@@ -243,22 +243,30 @@ namespace OrgChart.API.Controllers
         {
             try
             {
-                if (item.ManagerEmail == item.ToManagerEmail)
+                if (item.ManagerEmail.ToLower() == item.ToManagerEmail.ToLower())
                 {
-                    return BadRequest(new APIResponse<object> { IsSuccess = true, Message = "Employee cannot be reassigned to self", Data = null });
+                    return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "Employee cannot be reassigned to self", Data = null });
                 }
                 else
                 {
-                    if (string.IsNullOrEmpty(item.ManagerEmail))
+                    if (await sharePointService.IsEmployeePendingRequestExists(item.EmployeeEmail))
                     {
-                        // bypass approval
-                        await microsoftGraphService.AssignUserManager(item.EmployeeEmail, item.ToManagerEmail);
+                        return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "A pending request already exist for the specified employee", Data = null });
                     }
                     else
                     {
-                        // add approval
-                        item.ApprovalStatus = ApprovalStatus.PENDING.ToString();
-                        await sharePointService.AddApprovalItem(item);
+                        if (string.IsNullOrEmpty(item.ManagerEmail))
+                        {
+                            // bypass approval
+                            await microsoftGraphService.AssignUserManager(item.EmployeeEmail, item.ToManagerEmail);
+                        }
+                        else
+                        {
+                            // add approval
+                            item.ApprovalStatus = ApprovalStatus.PENDING.ToString();
+                            item.ApprovalType = ApprovalTypes.Approval.ToString();
+                            await sharePointService.AddApprovalItem(item);
+                        }
                     }
                 }
                 return Ok(new APIResponse<object> { IsSuccess = true, Message = "Success", Data = null });
@@ -278,29 +286,46 @@ namespace OrgChart.API.Controllers
             {
                 if (items.Count() == 0)
                 {
-                    return BadRequest(new APIResponse<object> { IsSuccess = true, Message = "List is empty", Data = null });
+                    return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "List is empty", Data = null });
                 }
-                else if (items.Any(i => i.ManagerEmail == i.ToManagerEmail))
+                else if (items.Any(i => i.ManagerEmail.ToLower() == i.ToManagerEmail.ToLower()))
                 {
-                    return BadRequest(new APIResponse<object> { IsSuccess = true, Message = "One or more employee(s) in list cannot be reassigned to self", Data = null });
+                    return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "One or more employee(s) in list cannot be reassigned to self", Data = null });
                 }
                 else
                 {
-                    var directs = items.Where(i => string.IsNullOrEmpty(i.ManagerEmail));
-                    var approvals = items.Where(i => !string.IsNullOrEmpty(i.ManagerEmail));
-
-                    if (directs.Count() > 0)
+                    var pendingItems = new List<string>();
+                    foreach (var i in items)
                     {
-                        await microsoftGraphService.AssignUsersManager(directs.Select(i => i.EmployeeEmail), directs.First().ToManagerEmail);
-                    }
-                    if (approvals.Count() > 0)
-                    {
-                        approvals = approvals.Select(i =>
+                        if (await sharePointService.IsEmployeePendingRequestExists(i.EmployeeEmail.ToLower()))
                         {
-                            i.ApprovalStatus = ApprovalStatus.PENDING.ToString();
-                            return i;
-                        });
-                        await sharePointService.BatchAddApprovalItem(approvals);
+                            pendingItems.Add(i.EmployeeEmail);
+                        }
+                    }
+
+                    if (pendingItems.Count > 0)
+                    {
+                        return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "Pending request(s) already exist for the employees: " + string.Join(", ", pendingItems), Data = null });
+                    }
+                    else
+                    {
+                        var directs = items.Where(i => string.IsNullOrEmpty(i.ManagerEmail));
+                        var approvals = items.Where(i => !string.IsNullOrEmpty(i.ManagerEmail));
+
+                        if (directs.Count() > 0)
+                        {
+                            await microsoftGraphService.AssignUsersManager(directs.Select(i => i.EmployeeEmail), directs.First().ToManagerEmail);
+                        }
+                        if (approvals.Count() > 0)
+                        {
+                            approvals = approvals.Select(i =>
+                            {
+                                i.ApprovalType = ApprovalTypes.Approval.ToString();
+                                i.ApprovalStatus = ApprovalStatus.PENDING.ToString();
+                                return i;
+                            });
+                            await sharePointService.BatchAddApprovalItem(approvals);
+                        }
                     }
                 }
                 return Ok(new APIResponse<object> { IsSuccess = true, Message = "Success", Data = null });
@@ -317,28 +342,46 @@ namespace OrgChart.API.Controllers
         {
             try
             {
-                if (item.RequestorEmail == item.ToManagerEmail)
+                if (item.RequestorEmail.ToLower() == item.ToManagerEmail.ToLower())
                 {
-                    return BadRequest(new APIResponse<object> { IsSuccess = true, Message = "Employee cannot be assigned to self", Data = null });
+                    return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "Employee cannot be assigned to self", Data = null });
                 }
-                if (item.ManagerEmail == item.ToManagerEmail)
+                if (item.ManagerEmail.ToLower() == item.ToManagerEmail.ToLower())
                 {
-                    return BadRequest(new APIResponse<object> { IsSuccess = true, Message = "Employee cannot be reassigned to manager", Data = null });
+                    return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "Employee cannot be reassigned to manager", Data = null });
                 }
-                if (string.IsNullOrEmpty(item.ManagerEmail))
+
+                if (await sharePointService.IsEmployeePendingRequestExists(item.EmployeeEmail))
                 {
-                    // bypass approval
-                    await microsoftGraphService.AssignUserManager(item.EmployeeEmail, item.ToManagerEmail);
-                }
-                else if (item.RequestorEmail == item.ManagerEmail)
-                {
-                    await microsoftGraphService.AssignUserManager(item.EmployeeEmail, item.ToManagerEmail, true);
+                    return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "A pending request already exist for the specified employee", Data = null });
                 }
                 else
                 {
-                    // add approval
-                    item.ApprovalStatus = ApprovalStatus.PENDING.ToString();
-                    await sharePointService.AddApprovalItem(item);
+                    if (string.IsNullOrEmpty(item.ManagerEmail))
+                    {
+                        // bypass approval
+                        //await microsoftGraphService.AssignUserManager(item.EmployeeEmail, item.ToManagerEmail);
+
+                        // add acceptance approval
+                        item.ApprovalStatus = ApprovalStatus.PENDING.ToString();
+                        item.ApprovalType = ApprovalTypes.Acceptance.ToString();
+                        await sharePointService.AddApprovalItem(item);
+                    }
+                    else if (item.RequestorEmail.ToLower() == item.ManagerEmail.ToLower())
+                    {
+                        //await microsoftGraphService.AssignUserManager(item.EmployeeEmail, item.ToManagerEmail, true);
+                        // add acceptance approval
+                        item.ApprovalStatus = ApprovalStatus.PENDING.ToString();
+                        item.ApprovalType = ApprovalTypes.Acceptance.ToString();
+                        await sharePointService.AddApprovalItem(item);
+                    }
+                    else
+                    {
+                        // add approval
+                        item.ApprovalStatus = ApprovalStatus.PENDING.ToString();
+                        item.ApprovalType = ApprovalTypes.Approval.ToString();
+                        await sharePointService.AddApprovalItem(item);
+                    }
                 }
                 return Ok(new APIResponse<object> { IsSuccess = true, Message = "Success", Data = null });
             }
@@ -356,40 +399,64 @@ namespace OrgChart.API.Controllers
             {
                 if (items.Count() == 0)
                 {
-                    return BadRequest(new APIResponse<object> { IsSuccess = true, Message = "List is empty", Data = null });
+                    return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "List is empty", Data = null });
                 }
-                else if (items.Any(i => i.RequestorEmail == i.ToManagerEmail))
+                else if (items.Any(i => i.RequestorEmail.ToLower() == i.ToManagerEmail.ToLower()))
                 {
-                    return BadRequest(new APIResponse<object> { IsSuccess = true, Message = "One or more employee(s) in list cannot be assigned to self", Data = null });
+                    return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "One or more employee(s) in list cannot be assigned to self", Data = null });
                 }
-                else if (items.Any(i => i.ManagerEmail == i.ToManagerEmail))
+                else if (items.Any(i => i.ManagerEmail.ToLower() == i.ToManagerEmail.ToLower()))
                 {
-                    return BadRequest(new APIResponse<object> { IsSuccess = true, Message = "One or more employee(s) in list cannot be reassigned to manager", Data = null });
+                    return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "One or more employee(s) in list cannot be reassigned to manager", Data = null });
                 }
                 else
                 {
-                    var directs = items.Where(i => string.IsNullOrEmpty(i.ManagerEmail) || i.RequestorEmail == i.ManagerEmail);
-                    var approvals = items.Where(i => !(string.IsNullOrEmpty(i.ManagerEmail) || i.RequestorEmail == i.ManagerEmail));
-
-                    if (directs.Count() > 0)
+                    var pendingItems = new List<string>();
+                    foreach (var i in items)
                     {
-                        await microsoftGraphService.AssignUsersManager(directs.Select(i => i.EmployeeEmail), directs.First().ToManagerEmail, true);
-                    }
-                    if (approvals.Count() > 0)
-                    {
-                        approvals = approvals.Select(i =>
+                        if (await sharePointService.IsEmployeePendingRequestExists(i.EmployeeEmail.ToLower()))
                         {
-                            i.ApprovalStatus = ApprovalStatus.PENDING.ToString();
-                            return i;
-                        });
-                        await sharePointService.BatchAddApprovalItem(approvals);
+                            pendingItems.Add(i.EmployeeEmail);
+                        }
+                    }
+
+                    if (pendingItems.Count > 0)
+                    {
+                        return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "Pending request(s) already exist for the employees: " + string.Join(", ", pendingItems), Data = null });
+                    }
+                    else
+                    {
+                        var directs = items.Where(i => string.IsNullOrEmpty(i.ManagerEmail) || i.RequestorEmail.ToLower() == i.ManagerEmail.ToLower());
+                        var approvals = items.Where(i => !(string.IsNullOrEmpty(i.ManagerEmail) || i.RequestorEmail.ToLower() == i.ManagerEmail.ToLower()));
+
+                        if (directs.Count() > 0)
+                        {
+                            //await microsoftGraphService.AssignUsersManager(directs.Select(i => i.EmployeeEmail), directs.First().ToManagerEmail, true);
+                            directs = directs.Select(i =>
+                            {
+                                i.ApprovalStatus = ApprovalStatus.PENDING.ToString();
+                                i.ApprovalType = ApprovalTypes.Acceptance.ToString();
+                                return i;
+                            });
+                            await sharePointService.BatchAddApprovalItem(directs);
+                        }
+                        if (approvals.Count() > 0)
+                        {
+                            approvals = approvals.Select(i =>
+                            {
+                                i.ApprovalStatus = ApprovalStatus.PENDING.ToString();
+                                i.ApprovalType = ApprovalTypes.Approval.ToString();
+                                return i;
+                            });
+                            await sharePointService.BatchAddApprovalItem(approvals);
+                        }
                     }
                 }
                 return Ok(new APIResponse<object> { IsSuccess = true, Message = "Success", Data = null });
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error encountered while assigning users to others i batch");
+                logger.LogError(ex, "Error encountered while assigning users to others in batch");
                 return StatusCode(500, new APIResponse<object> { IsSuccess = false, Message = ex.Message });
             }
         }
@@ -403,12 +470,47 @@ namespace OrgChart.API.Controllers
                 var _item = await sharePointService.GetApprovalItem(item.Id);
                 if (_item == null)
                 {
-                    return BadRequest(new APIResponse<object> { IsSuccess = true, Message = "Item id is invalid", Data = null });
+                    return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "Item id is invalid", Data = null });
                 }
                 var comment = string.IsNullOrEmpty(item.Comment) ? null : item.Comment;
-                await microsoftGraphService.AssignUserManager(_item.EmployeeEmail, _item.ToManagerEmail, true);
-                await sharePointService.UpdateApprovalItem(item.Id, ApprovalStatus.APPROVED.ToString(), comment);
 
+                // get user
+                var user = await microsoftGraphService.GetUser(_item.EmployeeEmail.ToLower());
+                if (_item.ApprovalType == ApprovalTypes.Approval.ToString() && user.Manager.Email.ToLower() != _item.ManagerEmail.ToLower())
+                {
+                    return BadRequest(new APIResponse<object> { IsSuccess = false, Message = $"You're no longer the manager of {_item.EmployeeName}. Kindly decline this request.", Data = null });
+                }
+
+                if (_item.ApprovalType == ApprovalTypes.Approval.ToString())
+                {
+                    if (await sharePointService.IsManagerHasMultiplePendingRequestForEmployee(_item.EmployeeEmail, _item.ManagerEmail))
+                    {
+                        return BadRequest(new APIResponse<object> { IsSuccess = false, Message = $"There are more than one pending request for {_item.EmployeeName}. Kindly decline others so you can approve only one", Data = null });
+                    }
+                    else
+                    {
+                        // by pass acceptance if assign to self
+                        if (_item.RequestorEmail.ToLower() == _item.ToManagerEmail.ToLower())
+                        {
+                            await microsoftGraphService.AssignUserManager(_item.EmployeeEmail, _item.ToManagerEmail, true);
+                            await sharePointService.UpdateApprovalItem(item.Id, ApprovalStatus.APPROVED.ToString(), comment);
+                        }
+                        else
+                        {
+                            await sharePointService.UpdateApprovalItem(item.Id, ApprovalStatus.APPROVED.ToString(), comment);
+                            _item.ApprovalStatus = ApprovalStatus.PENDING.ToString();
+                            _item.ApprovalType = ApprovalTypes.Acceptance.ToString();
+                            _item.Comment = null;
+                            _item.ReviewDate = null;
+                            await sharePointService.AddApprovalItem(_item);
+                        }
+                    }
+                }
+                else if (_item.ApprovalType == ApprovalTypes.Acceptance.ToString())
+                {
+                    await microsoftGraphService.AssignUserManager(_item.EmployeeEmail, _item.ToManagerEmail, true);
+                    await sharePointService.UpdateApprovalItem(item.Id, ApprovalStatus.APPROVED.ToString(), comment);
+                }
                 return Ok(new APIResponse<object> { IsSuccess = true, Message = "Success", Data = null });
             }
             catch (Exception ex)
@@ -417,6 +519,7 @@ namespace OrgChart.API.Controllers
                 return StatusCode(500, new APIResponse<object> { IsSuccess = false, Message = ex.Message });
             }
         }
+
         // decline
         [HttpPost("DeclineItem")]
         public async Task<IActionResult> DeclineItem(ApprovalItem item)
@@ -426,12 +529,12 @@ namespace OrgChart.API.Controllers
                 var _item = await sharePointService.GetApprovalItem(item.Id);
                 if (_item == null)
                 {
-                    return BadRequest(new APIResponse<object> { IsSuccess = true, Message = "Item id is invalid", Data = null });
+                    return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "Item id is invalid", Data = null });
                 }
 
                 if (string.IsNullOrEmpty(item.Comment))
                 {
-                    return BadRequest(new APIResponse<object> { IsSuccess = true, Message = "Comment is required", Data = null });
+                    return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "Comment is required", Data = null });
                 }
 
                 //await microsoftGraphService.AssignUserManager(_item.EmployeeEmail, _item.ToManagerEmail, true);
@@ -442,6 +545,36 @@ namespace OrgChart.API.Controllers
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error encountered while approving item");
+                return StatusCode(500, new APIResponse<object> { IsSuccess = false, Message = ex.Message });
+            }
+        }
+
+        // cancel
+        [HttpPost("CancelItem")]
+        public async Task<IActionResult> CancelItem(ApprovalItem item)
+        {
+            try
+            {
+                var _item = await sharePointService.GetApprovalItem(item.Id);
+                if (_item == null)
+                {
+                    return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "Item id is invalid", Data = null });
+                }
+
+                if (_item.ApprovalStatus != ApprovalStatus.PENDING.ToString())
+                {
+                    return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "Request cannot be canceled as it has been acted upon by the employee manager", Data = null });
+                }
+                else
+                {
+                    await sharePointService.DeleteApprovalItem(item.Id);
+                }
+
+                return Ok(new APIResponse<object> { IsSuccess = true, Message = "Success", Data = null });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error encountered while canceling item");
                 return StatusCode(500, new APIResponse<object> { IsSuccess = false, Message = ex.Message });
             }
         }
@@ -472,6 +605,21 @@ namespace OrgChart.API.Controllers
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error encountered fetching approval items pending action");
+                return StatusCode(500, new APIResponse<object> { IsSuccess = false, Message = ex.Message });
+            }
+        }
+
+        [HttpGet("{userId}/ApprovalItems/PendingAcceptance")]
+        public async Task<IActionResult> GetApprovalItemsPendingAcceptance(string userId)
+        {
+            try
+            {
+                var items = await sharePointService.GetApprovalItemsPendingAcceptance(userId);
+                return Ok(new APIResponse<object> { IsSuccess = true, Message = "Success", Data = items });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error encountered fetching approval items pending acceptance");
                 return StatusCode(500, new APIResponse<object> { IsSuccess = false, Message = ex.Message });
             }
         }

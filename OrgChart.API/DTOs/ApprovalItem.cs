@@ -9,6 +9,7 @@ namespace OrgChart.API.DTOs
     public class ApprovalItem
     {
         public int Id { get; set; }
+        public string ApprovalType { get; set; } = ApprovalTypes.Approval.ToString();
         public string EmployeeEmail { get; set; }
         public string EmployeeName { get; set; }
         public string EmployeeJobTitle { get; set; }
@@ -29,6 +30,7 @@ namespace OrgChart.API.DTOs
         {
             return new List<KeyValuePair<string, string>>
             {
+                new KeyValuePair<string, string>("approvalType", ApprovalType),
                 new KeyValuePair<string, string>("employeeEmail", EmployeeEmail),
                 new KeyValuePair<string, string>("employeeName", EmployeeName),
                 new KeyValuePair<string, string>("employeeJobTitle", EmployeeJobTitle),
@@ -50,6 +52,7 @@ namespace OrgChart.API.DTOs
             return new ApprovalItem
             {
                 Id = item.Id,
+                ApprovalType= item.FieldValues.FirstOrDefault(x => x.Key == "approvalType").Value,
                 EmployeeEmail = item.FieldValues.FirstOrDefault(x => x.Key == "employeeEmail").Value,
                 EmployeeName = item.FieldValues.FirstOrDefault(x => x.Key == "employeeName").Value,
                 EmployeeJobTitle = item.FieldValues.FirstOrDefault(x => x.Key == "employeeJobTitle").Value,
