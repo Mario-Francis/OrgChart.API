@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-
-namespace OrgChart.API.DTOs
+﻿namespace OrgChart.API.DTOs
 {
     public class AppSettings
     {
@@ -13,6 +8,7 @@ namespace OrgChart.API.DTOs
         public EmailSMTPConfig EmailSMTPConfig { get; set; }
 
         public bool ReportServiceEnabled { get; set; }
+        public bool UpdateAzureAD { get; set; }
         public int ReportServiceExecutionInterval { get; set; } // in minutes
     }
 }

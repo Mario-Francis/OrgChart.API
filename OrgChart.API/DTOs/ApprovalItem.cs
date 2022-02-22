@@ -21,6 +21,7 @@ namespace OrgChart.API.DTOs
         public string RequestorEmail { get; set; }
         public string RequestorName { get; set; }
         public string ApprovalStatus { get; set; }
+        public string LocalADSyncStatus { get; set; }
         public string Comment { get; set; }
         public string ReviewDate { get; set; }
         public string Created { get; set; }
@@ -43,6 +44,7 @@ namespace OrgChart.API.DTOs
                 new KeyValuePair<string, string>("toManagerName", ToManagerName),
                 //new KeyValuePair<string, string>("reviewDate", ReviewDate),
                 new KeyValuePair<string, string>("approvalStatus", ApprovalStatus),
+                new KeyValuePair<string, string>("localADSyncStatus", LocalADSyncStatus),
                 //new KeyValuePair<string, string>("comment", Comment)
             };
         }
@@ -68,6 +70,7 @@ namespace OrgChart.API.DTOs
                 ReviewDate = item.FieldValues.FirstOrDefault(x => x.Key == "reviewDate").Value,
                 Created = DateTimeOffset.Parse(item.FieldValues.FirstOrDefault(x => x.Key == "Created").Value).ToString("MM-dd-yyyy hh:mm tt"),
                 Modified = DateTimeOffset.Parse(item.FieldValues.FirstOrDefault(x => x.Key == "Modified").Value).ToString("MM-dd-yyyy hh:mm tt"),
+                LocalADSyncStatus = item.FieldValues.FirstOrDefault(x => x.Key == "LocalADSyncStatus").Value
             };
         }
     }
