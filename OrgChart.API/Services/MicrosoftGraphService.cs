@@ -353,16 +353,22 @@ namespace OrgChart.API.Services
         {
             if (forceAssign)
             {
-                var client = await GetGraphServiceClient();
-                await client.Users[userId].Manager.Reference.Request().PutAsync(managerId);
+                if (this.appSettingsDelegate.Value.UpdateAzureAD)
+                {
+                    var client = await GetGraphServiceClient();
+                    await client.Users[userId].Manager.Reference.Request().PutAsync(managerId);
+                }
             }
             else
             {
                 var user = await GetUser(userId);
                 if (user.ManagerId == null)
                 {
-                    var client = await GetGraphServiceClient();
-                    await client.Users[userId].Manager.Reference.Request().PutAsync(managerId);
+                    if (this.appSettingsDelegate.Value.UpdateAzureAD)
+                    {
+                        var client = await GetGraphServiceClient();
+                        await client.Users[userId].Manager.Reference.Request().PutAsync(managerId);
+                    }
                 }
                 else
                 {
@@ -373,8 +379,11 @@ namespace OrgChart.API.Services
 
         public async Task UnassignUserManager(string userId)
         {
-            var client = await GetGraphServiceClient();
-            await client.Users[userId].Manager.Reference.Request().DeleteAsync();
+            if (this.appSettingsDelegate.Value.UpdateAzureAD)
+            {
+                var client = await GetGraphServiceClient();
+                await client.Users[userId].Manager.Reference.Request().DeleteAsync();
+            }
         }
 
         public async Task AssignUsersManager(IEnumerable<string> userIds, string managerId, bool forceAssign = false)
@@ -387,25 +396,35 @@ namespace OrgChart.API.Services
                     var user = await GetUser(userId);
                     if (user.ManagerId == null)
                     {
-                        var client = await GetGraphServiceClient();
-                        await client.Users[userId].Manager.Reference.Request().PutAsync(managerId);
+                        if (this.appSettingsDelegate.Value.UpdateAzureAD)
+                        {
+                            var client = await GetGraphServiceClient();
+                            await client.Users[userId].Manager.Reference.Request().PutAsync(managerId);
+                        }
                     }
                 }
                 else
                 {
-                    var client = await GetGraphServiceClient();
-                    await client.Users[userId].Manager.Reference.Request().PutAsync(managerId);
+                    if (this.appSettingsDelegate.Value.UpdateAzureAD)
+                    {
+                        var client = await GetGraphServiceClient();
+                        await client.Users[userId].Manager.Reference.Request().PutAsync(managerId);
+                    }
                 }
             }, Convert.ToInt32(Math.Ceiling((Environment.ProcessorCount * 0.75) * 2.0)));
         }
 
         public async Task UnassignUsersManager(IEnumerable<string> userIds)
         {
-            await userIds.ParallelForEachAsync(async (userId) =>
+            if (this.appSettingsDelegate.Value.UpdateAzureAD)
             {
-                var client = await GetGraphServiceClient();
-                await client.Users[userId].Manager.Reference.Request().DeleteAsync();
-            }, Convert.ToInt32(Math.Ceiling((Environment.ProcessorCount * 0.75) * 2.0)));
+                await userIds.ParallelForEachAsync(async (userId) =>
+                        {
+                            var client = await GetGraphServiceClient();
+                            await client.Users[userId].Manager.Reference.Request().DeleteAsync();
+                        }, Convert.ToInt32(Math.Ceiling((Environment.ProcessorCount * 0.75) * 2.0)));
+
+            }
         }
 
         public async Task<bool> UserExistsInGroup(string userId, string groupId)

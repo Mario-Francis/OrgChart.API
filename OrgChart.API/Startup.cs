@@ -42,6 +42,7 @@ namespace OrgChart.API
             services.AddScoped<IReportService, ReportService>();
 
             services.AddHostedService<ReportBackgroundService>();
+            services.AddHostedService<AzureADPollingService>();
 
             services.Configure<AzureADSettings>(Configuration.GetSection("AzureAD"));
             services.Configure<SharePointSettings>(Configuration.GetSection("SharePoint"));

@@ -19,13 +19,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="SharepointCSOMLib">
-      <HintPath>\\Mac\Home\Documents\Visual Studio 2019\Projects\SharepointApps\SharepointCSOMLib\bin\Release\netcoreapp3.1\SharepointCSOMLib.dll</HintPath>
-      <Private>true</Private>
-    </Reference>
+    <Folder Include="Logs\" />
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Logs\" />
+    <Reference Include="SharepointCSOMLib">
+      <HintPath>SharepointCSOMLib.dll</HintPath>
+    </Reference>
   </ItemGroup>
 </Project>
