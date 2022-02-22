@@ -13,6 +13,7 @@ namespace OrgChart.API.Services
         Task<ApprovalItem> GetApprovalItem(int itemId);
         Task UpdateApprovalItem(int id, string approvalStatus, string comment = null);
         Task<IEnumerable<ApprovalItem>> GetInitiatedPendingApprovalItems(string requestorEmail);
+        Task<IEnumerable<ApprovalItem>> GetApprovalPendingItemLocalADSyncCompleted();        
         Task<IEnumerable<ApprovalItem>> GetApprovalItemsPendingAction(string managerEmail);
         Task<IEnumerable<ApprovalItem>> GetApprovalItemsPendingAcceptance(string toManagerEmail);
         Task<bool> IsEmployeePendingRequestExists(string employeeEmail);

@@ -104,6 +104,25 @@ namespace OrgChart.API.Services
             return items;
         }
 
+        public async Task<IEnumerable<ApprovalItem>> GetApprovalPendingItemLocalADSyncCompleted()
+        {
+            var req = new SearchListByFieldValuesRequest
+            {
+                ListName = spSettingsDelegate.Value.ApprovalList,
+                SearchParams = new List<KeyValuePair<string, string>>
+               {
+                   new KeyValuePair<string, string>("approvalType", ApprovalTypes.Approval.ToString()),
+                   new KeyValuePair<string, string>("LocalAdSync", "Completed"),
+                   new KeyValuePair<string, string>("approvalStatus", ApprovalStatus.PENDING.ToString())
+               },
+                Options = new PagingOptions { Length = 1000, SortByDateCreated = true, SortByDateCreatedDir = "DESC", StartIndex = 0 }
+            };
+            var result = await listMgr.SearchListByFieldValues(req, 1000);
+            var items = result.ListItems.Select(i => ApprovalItem.FromSPListItem(i));
+
+            return items;
+        }
+
         public async Task<IEnumerable<ApprovalItem>> GetApprovalItemsPendingAcceptance(string toManagerEmail)
         {
             var req = new SearchListByFieldValuesRequest
