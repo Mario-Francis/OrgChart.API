@@ -70,7 +70,7 @@ namespace OrgChart.API.DTOs
                 ReviewDate = item.FieldValues.FirstOrDefault(x => x.Key == "reviewDate").Value,
                 Created = DateTimeOffset.Parse(item.FieldValues.FirstOrDefault(x => x.Key == "Created").Value).ToString("MM-dd-yyyy hh:mm tt"),
                 Modified = DateTimeOffset.Parse(item.FieldValues.FirstOrDefault(x => x.Key == "Modified").Value).ToString("MM-dd-yyyy hh:mm tt"),
-                LocalADSyncStatus = item.FieldValues.FirstOrDefault(x => x.Key == "LocalADSyncStatus").Value
+                LocalADSyncStatus = item.FieldValues.FirstOrDefault(x => x.Key == "localADSyncStatus").Value
             };
         }
     }
