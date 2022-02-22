@@ -44,7 +44,7 @@ namespace OrgChart.API.DTOs
                 new KeyValuePair<string, string>("toManagerName", ToManagerName),
                 //new KeyValuePair<string, string>("reviewDate", ReviewDate),
                 new KeyValuePair<string, string>("approvalStatus", ApprovalStatus),
-                new KeyValuePair<string, string>("localADSyncStatus", LocalADSyncStatus),
+                //new KeyValuePair<string, string>("localADSyncStatus", LocalADSyncStatus),
                 //new KeyValuePair<string, string>("comment", Comment)
             };
         }

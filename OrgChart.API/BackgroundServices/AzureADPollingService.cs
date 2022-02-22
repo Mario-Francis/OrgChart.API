@@ -39,7 +39,7 @@ namespace OrgChart.API.BackgroundServices
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            if (appSettingsDelegate.CurrentValue.UpdateAzureAD)
+            if (!appSettingsDelegate.CurrentValue.UpdateAzureAD)
             {
                 logger.LogInformation("AzureADPolling background service started running.");
 
@@ -52,7 +52,7 @@ namespace OrgChart.API.BackgroundServices
 
         private void DoWork(object state)
         {
-            if (appSettingsDelegate.CurrentValue.UpdateAzureAD)
+            if (!appSettingsDelegate.CurrentValue.UpdateAzureAD)
             {
                 _ = DoWorkAsync(state);
             }
@@ -71,8 +71,14 @@ namespace OrgChart.API.BackgroundServices
                     {
                         foreach (var row in list)
                         {
-                            // update sharepoint list with approved status
-                            await _sharePointService.UpdateApprovalItem(row.Id, ApprovalStatus.APPROVED.ToString());
+                            // if manager is updated in azureAD as well
+                            var data = await _microsoftGraphService.GetUser(row.EmployeeEmail);
+
+                            if (data != null && data.Manager.UserPrincipalName.ToLower() == row.ToManagerEmail.ToLower())
+                            {
+                                // update sharepoint list with approved status
+                                await _sharePointService.UpdateApprovalItem(row.Id, ApprovalStatus.APPROVED.ToString());
+                            }
                         }
                     }
                 }

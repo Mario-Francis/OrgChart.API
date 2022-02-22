@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.OpenApi.Models;
 using OrgChart.API.BackgroundServices;
 using OrgChart.API.DTOs;
 using OrgChart.API.Services;
@@ -47,6 +48,10 @@ namespace OrgChart.API
             services.Configure<SharePointSettings>(Configuration.GetSection("SharePoint"));
             services.Configure<AppSettings>(Configuration.GetSection("AppSettings"));
 
+            object p = services.AddSwaggerGen(c =>
+            {
+                c.SwaggerDoc("v1", new OpenApiInfo { Title = "OrgChartAPI", Version = "v1" });
+            });
             services.AddHttpClient();
         }
 
