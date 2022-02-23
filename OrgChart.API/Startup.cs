@@ -63,7 +63,8 @@ namespace OrgChart.API
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
-            }else
+            }
+            else
             {
                 app.UseHsts();
             }
@@ -75,6 +76,10 @@ namespace OrgChart.API
            .AllowAnyHeader()
            .AllowAnyMethod());
 
+
+            app.UseSwagger();
+            app.UseSwaggerUI();
+           
             app.UseAuthorization();
 
             app.UseEndpoints(endpoints =>
