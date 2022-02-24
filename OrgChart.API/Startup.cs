@@ -82,7 +82,7 @@ namespace OrgChart.API
             app.UseSwagger();
             app.UseSwaggerUI();
            
-            app.UseMiddleware<AuthMiddleware>();
+            //app.UseMiddleware<AuthMiddleware>();
 
             app.UseAuthorization();
 
