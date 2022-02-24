@@ -10,5 +10,6 @@
         public bool ReportServiceEnabled { get; set; }
         public bool UpdateAzureAD { get; set; }
         public int ReportServiceExecutionInterval { get; set; } // in minutes
+        public string APIKey { get; set; }
     }
 }

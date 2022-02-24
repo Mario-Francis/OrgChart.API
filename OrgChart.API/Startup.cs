@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
 using OrgChart.API.BackgroundServices;
 using OrgChart.API.DTOs;
+using OrgChart.API.Middlewares;
 using OrgChart.API.Services;
 using System;
 using System.Collections.Generic;
@@ -69,6 +70,7 @@ namespace OrgChart.API
                 app.UseHsts();
             }
 
+            
             app.UseHttpsRedirection();
 
             app.UseRouting();
@@ -80,6 +82,8 @@ namespace OrgChart.API
             app.UseSwagger();
             app.UseSwaggerUI();
            
+            app.UseMiddleware<AuthMiddleware>();
+
             app.UseAuthorization();
 
             app.UseEndpoints(endpoints =>

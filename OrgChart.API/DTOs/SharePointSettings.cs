@@ -14,6 +14,7 @@ namespace OrgChart.API.DTOs
         public string Resource { get; set; }
         public string GrantType { get; set; }
         public string ApprovalList { get; set; }
+        public string ProfileApprovalList { get; set; }
 
     }
 }

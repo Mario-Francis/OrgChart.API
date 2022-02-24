@@ -16,7 +16,7 @@ using IHttpClientFactory = System.Net.Http.IHttpClientFactory;
 
 namespace OrgChart.API.Services
 {
-    public class MicrosoftGraphService : IMicrosoftGraphService
+    public partial class MicrosoftGraphService : IMicrosoftGraphService
     {
         private readonly IOptionsSnapshot<AzureADSettings> azureADSettingsDelegate;
         private readonly IHttpClientFactory clientFactory;
@@ -444,5 +444,34 @@ namespace OrgChart.API.Services
                 return false;
             }
         }
+
+
+        public async Task<UserProfile> GetProfile(string userId)
+        {
+            var profile = await GetUserProfile(userId);
+            profile.Profile.Base64Photo = await GetUserPhoto(userId);
+
+            return profile;
+        }
+
+        public async Task UpdateProfile(string userId, Profile profile)
+        {
+            if (!string.IsNullOrEmpty(profile.Base64Photo))
+            {
+                if (!profile.Base64Photo.IsBase64String())
+                {
+                    throw new Exception("Invalid base64 photo");
+                }
+                else
+                {
+                    await UpdateUserPhoto(userId, profile.Base64Photo);
+                }
+            }
+
+            await HttpUpdateUserProfile(userId, profile);
+            await UpdateUserAboutMe(userId, profile);
+
+        }
+
     }
 }

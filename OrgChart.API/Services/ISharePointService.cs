@@ -19,5 +19,16 @@ namespace OrgChart.API.Services
         Task<bool> IsEmployeePendingRequestExists(string employeeEmail);
         Task<bool> IsManagerHasMultiplePendingRequestForEmployee(string employeeEmail, string managerEmail);
         Task DeleteApprovalItem(int itemId);
+
+        //=============================== Profile  Approval ==============================
+        Task AddProfileApprovalItem(ProfileApprovalItem item);
+        Task<ProfileApprovalItem> GetProfileApprovalItem(int itemId);
+        Task UpdateProfileApprovalItem(int id, string approvalStatus, string comment = null);
+        Task<IEnumerable<ProfileApprovalItem>> GetInitiatedPendingProfileApprovalItems(string employeeEmail);
+        Task<IEnumerable<ProfileApprovalItem>> GetProfileApprovalItemsPendingAction(string managerEmail);
+        Task<bool> IsEmployeePendingProfileRequestExists(string employeeEmail);
+        Task<bool> IsManagerHasMultiplePendingProfileRequestForEmployee(string employeeEmail, string managerEmail);
+        Task DeleteProfileApprovalItem(int itemId);
+
     }
 }
