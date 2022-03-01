@@ -99,7 +99,6 @@ namespace OrgChart.API.Services
             await client.Users[userId]
                 .Request()
                 .UpdateAsync(user);
-
         }
 
         private async Task HttpUpdateUserProfile(string userId, Profile profile)
@@ -152,7 +151,38 @@ namespace OrgChart.API.Services
 
         }
 
-       
+        private async Task HttpUpdateUserAboutMe(string userId, Profile profile)
+        {
+            AuthenticationContext authenticationContext = new AuthenticationContext(azureADSettingsDelegate.Value.Authority);
+            ClientCredential clientCred = new ClientCredential(azureADSettingsDelegate.Value.ClientId, azureADSettingsDelegate.Value.ClientSecret);
+
+            // ADAL includes an in memory cache, so this call will only send a message to the server if the cached token is expired.
+            AuthenticationResult authenticationResult = await authenticationContext.AcquireTokenAsync(azureADSettingsDelegate.Value.GraphResource, clientCred);
+            var token = authenticationResult.AccessToken;
+
+            var url = $"https://graph.microsoft.com/v1.0/users/{userId}";
+            var request = new HttpRequestMessage(HttpMethod.Patch, url);
+            request.Headers.Authorization = new AuthenticationHeaderValue("bearer", token.ToString());
+            var body = JsonSerializer.Serialize(new
+            {
+                aboutMe = profile.AboutMe
+            });
+            request.Content = new StringContent(body, Encoding.UTF8, "application/json");
+
+            var client = clientFactory.CreateClient();
+            var response = await client.SendAsync(request);
+
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var resContent = await response.Content.ReadAsStringAsync();
+                throw new Exception(resContent);
+            }
+
+        }
+
+
+
 
     }
 }

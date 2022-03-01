@@ -456,7 +456,7 @@ namespace OrgChart.API.Services
 
         public async Task UpdateProfile(string userId, Profile profile)
         {
-            if (!string.IsNullOrEmpty(profile.Base64Photo) && profile.Base64Photo!="null")
+            if (!string.IsNullOrEmpty(profile.Base64Photo?.Trim()))
             {
                 if (!profile.Base64Photo.IsBase64String())
                 {
@@ -468,7 +468,7 @@ namespace OrgChart.API.Services
                 }
             }
 
-            await HttpUpdateUserProfile(userId, profile);
+            await UpdateUserProfile(userId, profile);
             await UpdateUserAboutMe(userId, profile);
 
         }
