@@ -23,16 +23,17 @@ namespace OrgChart.API.DTOs
         {
             return new User
             {
-                BusinessPhones = new List<string> {
-                BusinessPhone
+                BusinessPhones = string.IsNullOrEmpty(BusinessPhone?.Trim())?new List<string>()
+                :new List<string> {
+                    BusinessPhone
                 },
-                MobilePhone = MobilePhone,
-                OfficeLocation = Office,
-                StreetAddress = Street,
-                PostalCode = PostalCode,
-                City = City,
-                State = State,
-                Country = Country
+                MobilePhone = string.IsNullOrEmpty(MobilePhone?.Trim()) ? " " : MobilePhone,
+                OfficeLocation = string.IsNullOrEmpty(Office?.Trim()) ? " " : Office,
+                StreetAddress = string.IsNullOrEmpty(Street?.Trim()) ? " " : Street,
+                PostalCode = string.IsNullOrEmpty(PostalCode?.Trim()) ? " " : PostalCode,
+                City = string.IsNullOrEmpty(City?.Trim()) ? " " : City,
+                State = string.IsNullOrEmpty(State?.Trim()) ? " " : State,
+                Country = string.IsNullOrEmpty(Country?.Trim()) ? " " : Country
             };
         }
 
@@ -40,7 +41,7 @@ namespace OrgChart.API.DTOs
         {
             return new User
             {
-                AboutMe = AboutMe
+                AboutMe = string.IsNullOrEmpty(AboutMe?.Trim()) ? " " : AboutMe
             };
         }
 
