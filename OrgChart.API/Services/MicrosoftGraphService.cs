@@ -70,7 +70,7 @@ namespace OrgChart.API.Services
 
             var user = await client.Users[userId].Request()
                  //.Expand(u => u.Manager)
-                 .Expand("manager($select=id,displayName,userPrincipalName,jobTitle,mail,surname,givenName,mobilePhone,businessPhones,department,accountEnabled)")
+                // .Expand("manager($select=id,displayName,userPrincipalName,jobTitle,mail,surname,givenName,mobilePhone,businessPhones,department,accountEnabled)")
                  .Select(u => new
                  {
                      u.Id,

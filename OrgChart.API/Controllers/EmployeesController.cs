@@ -247,7 +247,7 @@ namespace OrgChart.API.Controllers
         {
             try
             {
-                if (item.ManagerEmail.ToLower() == item.ToManagerEmail.ToLower())
+                if (!string.IsNullOrEmpty(item.ManagerEmail) && item.ManagerEmail.ToLower() == item.ToManagerEmail.ToLower())
                 {
                     return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "Employee cannot be reassigned to self", Data = null });
                 }
@@ -350,7 +350,7 @@ namespace OrgChart.API.Controllers
                 {
                     return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "Employee cannot be assigned to self", Data = null });
                 }
-                if (item.ManagerEmail.ToLower() == item.ToManagerEmail.ToLower())
+                if (item.ManagerEmail!=null && item.ManagerEmail.ToLower() == item.ToManagerEmail.ToLower())
                 {
                     return BadRequest(new APIResponse<object> { IsSuccess = false, Message = "Employee cannot be reassigned to manager", Data = null });
                 }
